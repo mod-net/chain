@@ -21,11 +21,16 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             clang protobuf-compiler pkg-config libssl-dev cmake
 
-      - name: Set up Rust toolchain
+      - name: Set up Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
           components: clippy,rustfmt
+
+      - name: Install nightly for Wasm runtime
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: wasm32-unknown-unknown
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -39,8 +44,12 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Build
+      - name: Build (includes runtime Wasm via wasm-builder)
+        env:
+          WASM_BUILD_TOOLCHAIN: nightly
         run: cargo build --locked --release
 
       - name: Test
+        env:
+          WASM_BUILD_TOOLCHAIN: nightly
         run: cargo test --all --locked --release -- --nocapture

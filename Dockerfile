@@ -26,10 +26,13 @@ COPY pallets pallets
 # Copy the full source
 COPY . .
 
-# Ensure wasm target available for substrate if needed
-RUN rustup target add wasm32-unknown-unknown
+# Install nightly for runtime Wasm builds and add wasm32 target
+RUN rustup toolchain install nightly \
+ && rustup +nightly target add wasm32-unknown-unknown \
+ && rustup target add wasm32-unknown-unknown
 
-# Build release binary
+# Build release binary (use nightly for Wasm builder)
+ENV WASM_BUILD_TOOLCHAIN=nightly
 RUN cargo build --locked --release -p modnet-node
 
 ################

@@ -1,13 +1,14 @@
-use crate::{
-    benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
-    chain_spec,
-    cli::{Cli, Subcommand},
-    service,
-};
+use crate::{chain_spec, cli:: {Cli, Subcommand}, service};
+#[cfg(feature = "runtime-benchmarks")]
+use crate::benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
+#[cfg(feature = "runtime-benchmarks")]
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
-use modnet_runtime::{Block, EXISTENTIAL_DEPOSIT};
+use modnet_runtime::Block;
+#[cfg(feature = "runtime-benchmarks")]
+use modnet_runtime::EXISTENTIAL_DEPOSIT;
 use sc_cli::SubstrateCli;
 use sc_service::PartialComponents;
+#[cfg(feature = "runtime-benchmarks")]
 use sp_keyring::Sr25519Keyring;
 
 impl SubstrateCli for Cli {
@@ -122,6 +123,7 @@ pub fn run() -> sc_cli::Result<()> {
                 Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
             })
         }
+        #[cfg(feature = "runtime-benchmarks")]
         Some(Subcommand::Benchmark(cmd)) => {
             let runner = cli.create_runner(cmd)?;
 
