@@ -1,8 +1,8 @@
 [package]
-name = "solochain-template-runtime"
-description = "A solochain runtime template built with Substrate, part of Polkadot Sdk."
+name = "modnet-runtime"
+description = "ModNet runtime built with Substrate, part of ModNet."
 version = "0.1.0"
-license = "Unlicense"
+license = "MIT-0"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true

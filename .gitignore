@@ -1,1 +1,35 @@
+# Rust
 target/
+**/target/
+
+# Nix / direnv
+.direnv/
+result
+.nix-profile
+.nix-defexpr
+
+# Environment files
+.env
+.env.*
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs / tmp
+logs/
+*.log
+tmp/
+.tmp/
+*.tmp
+
+# Project references (kept out of repo)
+.reference
+

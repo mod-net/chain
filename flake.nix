@@ -14,8 +14,10 @@
           rustup
           clang
           protobuf
+          pkg-config
+          openssl
+          cmake
         ];
-
         LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
       };
     });

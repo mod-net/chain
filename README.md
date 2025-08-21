@@ -1,3 +1,51 @@
+# ModNet Substrate Node Template
+
+![Rust CI](https://github.com/Bakobiibizo/substrate-chain-template/actions/workflows/rust.yml/badge.svg)
+![Nix CI](https://github.com/Bakobiibizo/substrate-chain-template/actions/workflows/nix.yml/badge.svg)
+![Docker](https://github.com/Bakobiibizo/substrate-chain-template/actions/workflows/docker.yml/badge.svg)
+
+Rust-only template for a Substrate node with single-source Nix, GitHub Actions (Rust, Nix, Docker), and GHCR publishing.
+
+## Dev Quickstart
+
+Choose either Nix or system toolchain.
+
+### With Nix (recommended)
+```bash
+nix develop
+cargo build --release
+cargo test --all --release
+./target/release/modnet-node --version
+```
+
+### Without Nix (system toolchain)
+Install: clang, protobuf-compiler, pkg-config, libssl-dev, cmake
+```bash
+rustup toolchain install stable --component rustfmt clippy
+rustup target add wasm32-unknown-unknown
+cargo build --release
+cargo test --all --release
+```
+
+## Project Layout
+
+- `node/` — node binary crate (`modnet-node`)
+- `runtime/` — runtime crate
+- `pallets/` — custom pallets
+- `flake.nix` — single-source Nix devshell (canonical)
+- `.github/workflows/` — Rust, Nix, Docker CI
+- `Dockerfile` — multi-stage image build
+
+## CI/CD
+
+- Rust CI: fmt, clippy, build, tests (`.github/workflows/rust.yml`)
+- Nix CI: flake eval + sanity build (`.github/workflows/nix.yml`)
+- Docker: builds and pushes to GHCR (`.github/workflows/docker.yml`)
+
+Images publish to: `ghcr.io/Bakobiibizo/substrate-chain-template:<tag>`
+
+---
+
 # Substrate Node Template
 
 A fresh [Substrate](https://substrate.io/) node, ready for hacking :rocket:

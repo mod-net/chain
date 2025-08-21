@@ -1,28 +1,64 @@
-FROM docker.io/paritytech/ci-unified:latest as builder
+###############
+# Builder stage
+###############
+FROM rust:1-bookworm AS builder
 
-WORKDIR /polkadot
-COPY . /polkadot
+ARG RUSTFLAGS
+ENV CARGO_TERM_COLOR=always
 
-RUN cargo fetch
-RUN cargo build --locked --release
+# Build dependencies for Substrate
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clang \
+    pkg-config \
+    libssl-dev \
+    cmake \
+    protobuf-compiler \
+  && rm -rf /var/lib/apt/lists/*
 
-FROM docker.io/parity/base-bin:latest
+WORKDIR /build
 
-COPY --from=builder /polkadot/target/release/solochain-template-node /usr/local/bin
+# Optionally leverage caching by copying manifests first
+COPY Cargo.toml Cargo.lock ./
+COPY node/Cargo.toml node/Cargo.toml
+COPY runtime/Cargo.toml runtime/Cargo.toml
+COPY pallets pallets
 
-USER root
-RUN useradd -m -u 1001 -U -s /bin/sh -d /polkadot polkadot && \
-	mkdir -p /data /polkadot/.local/share && \
-	chown -R polkadot:polkadot /data && \
-	ln -s /data /polkadot/.local/share/polkadot && \
-# unclutter and minimize the attack surface
-	rm -rf /usr/bin /usr/sbin && \
-# check if executable works in this container
-	/usr/local/bin/solochain-template-node --version
+# Copy the full source
+COPY . .
 
-USER polkadot
+# Ensure wasm target available for substrate if needed
+RUN rustup target add wasm32-unknown-unknown
+
+# Build release binary
+RUN cargo build --locked --release -p modnet-node
+
+################
+# Runtime stage
+################
+FROM debian:bookworm-slim AS runtime
+
+ENV RUST_LOG=info \
+    RUST_BACKTRACE=1
+
+# Runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+  && rm -rf /var/lib/apt/lists/* \
+  && update-ca-certificates
+
+# Create non-root user and data dir
+RUN useradd -m -u 10001 -U -s /usr/sbin/nologin modnet \
+  && mkdir -p /data \
+  && chown -R modnet:modnet /data
+
+# Copy binary
+COPY --from=builder /build/target/release/modnet-node /usr/local/bin/modnet-node
+
+USER modnet
+WORKDIR /data
 
 EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
-ENTRYPOINT ["/usr/local/bin/solochain-template-node"]
+ENTRYPOINT ["/usr/local/bin/modnet-node"]
