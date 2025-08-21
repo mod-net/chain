@@ -32,6 +32,12 @@ RUN rustup toolchain install nightly \
  && rustup +nightly target add wasm32-unknown-unknown \
  && rustup target add wasm32-unknown-unknown
 
+# Verify nightly rust-src is present (helps catch cache issues in CI)
+RUN rustup +nightly component list --installed \
+ && rustc +nightly -vV \
+ && test -d /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust \
+ && echo "nightly rust-src present"
+
 # Build release binary (use nightly for Wasm builder)
 ENV WASM_BUILD_TOOLCHAIN=nightly
 RUN cargo build --locked --release -p modnet-node
