@@ -26,8 +26,9 @@ COPY pallets pallets
 # Copy the full source
 COPY . .
 
-# Install nightly for runtime Wasm builds and add wasm32 target
+# Install nightly for runtime Wasm builds, add rust-src and wasm32 target
 RUN rustup toolchain install nightly \
+ && rustup component add rust-src --toolchain nightly \
  && rustup +nightly target add wasm32-unknown-unknown \
  && rustup target add wasm32-unknown-unknown
 
