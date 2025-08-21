@@ -1,6 +1,10 @@
-use crate::{chain_spec, cli:: {Cli, Subcommand}, service};
 #[cfg(feature = "runtime-benchmarks")]
 use crate::benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
+use crate::{
+    chain_spec,
+    cli::{Cli, Subcommand},
+    service,
+};
 #[cfg(feature = "runtime-benchmarks")]
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use modnet_runtime::Block;
