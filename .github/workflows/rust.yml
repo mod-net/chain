@@ -31,6 +31,7 @@ jobs:
             git \
             libssl-dev \
             pkg-config \
+            protobuf-compiler \
             xz-utils \
             sudo
           
@@ -45,7 +46,12 @@ jobs:
           workspaces: |
             . -> target
 
+      - name: Apply pallet-staking patch
+        run: |
+          # Apply the patch to fix pallet-staking
+          ./scripts/apply-pallet-staking-fix.sh || echo "Patch may have already been applied"
+          
       - name: Run CI script
-        run: ./scripts/run_ci.sh
+        run: ./scripts/run_ci.sh --enable-try-runtime
         env:
           WASM_BUILD_TOOLCHAIN: nightly

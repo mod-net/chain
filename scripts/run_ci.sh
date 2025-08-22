@@ -85,6 +85,22 @@ if [ "$SKIP_RUST" = false ]; then
   
   # Note: We've added a local fix for the pallet-staking error in runtime/src/staking_fix.rs
   
+  # Install required system dependencies
+  log_info "Installing system dependencies..."
+  if command -v apt-get &> /dev/null; then
+    log_info "Detected Debian/Ubuntu, installing protobuf-compiler..."
+    sudo apt-get update && sudo apt-get install -y protobuf-compiler || log_warn "Failed to install protobuf-compiler with apt-get"
+  elif command -v yum &> /dev/null; then
+    log_info "Detected RHEL/CentOS/Fedora, installing protobuf-compiler..."
+    sudo yum install -y protobuf-compiler || log_warn "Failed to install protobuf-compiler with yum"
+  elif command -v brew &> /dev/null; then
+    log_info "Detected macOS, installing protobuf with Homebrew..."
+    brew install protobuf || log_warn "Failed to install protobuf with Homebrew"
+  else
+    log_warn "Could not detect package manager to install protobuf-compiler"
+    log_warn "Please install protobuf-compiler manually if build fails"
+  fi
+
   # Setup Rust toolchain
   log_info "Setting up Rust toolchain..."
   rustup default stable
