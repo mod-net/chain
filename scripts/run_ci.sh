@@ -49,10 +49,11 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # Get project root directory
-PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-if [ -z "$PROJECT_ROOT" ]; then
-  PROJECT_ROOT=$(pwd)
-  log_warn "Not in a git repository. Using current directory as project root."
+PROJECT_ROOT=$(pwd)
+if command -v git &> /dev/null && git rev-parse --is-inside-work-tree &> /dev/null; then
+  PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "$PROJECT_ROOT")
+else
+  log_warn "Not in a git repository or git command failed. Using current directory as project root."
 fi
 
 cd "$PROJECT_ROOT"
@@ -136,7 +137,11 @@ if [ "$SKIP_DOCKER" = false ]; then
   
   # Set default tag if not provided
   if [ -z "$DOCKER_TAG" ]; then
-    DOCKER_TAG="local-$(git rev-parse --short HEAD 2>/dev/null || echo 'dev')"
+    if command -v git &> /dev/null && git rev-parse --is-inside-work-tree &> /dev/null; then
+      DOCKER_TAG="local-$(git rev-parse --short HEAD 2>/dev/null || echo 'dev')"
+    else
+      DOCKER_TAG="local-dev"
+    fi
   fi
   
   # Repository name from git remote or default
