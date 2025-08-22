@@ -1,0 +1,23 @@
+version: "3.9"
+services:
+  modnet-node:
+    container_name: modnet-node
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "9944:9944"  # WebSocket RPC
+      - "9933:9933"  # HTTP RPC
+      - "30333:30333" # P2P
+    volumes:
+      - modnet-data:/data
+    command: >
+      --base-path /data
+      --chain local
+      --rpc-cors all
+      --rpc-methods safe
+      --rpc-external
+      --ws-external
+volumes:
+  modnet-data:

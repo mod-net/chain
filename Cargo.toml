@@ -17,7 +17,7 @@ resolver = "2"
 modnet-runtime = { path = "./runtime", default-features = false }
 pallet-template = { path = "./pallets/template", default-features = false }
 clap = { version = "4.5.13" }
-frame-benchmarking-cli = { version = "49.0.0", default-features = false }
+frame-benchmarking-cli = { version = "49.1.0", default-features = false }
 frame-metadata-hash-extension = { version = "0.9.0", default-features = false }
 frame-system = { version = "41.0.0", default-features = false }
 futures = { version = "0.3.31" }
@@ -25,17 +25,17 @@ jsonrpsee = { version = "0.24.3" }
 pallet-transaction-payment = { version = "41.0.0", default-features = false }
 pallet-transaction-payment-rpc = { version = "44.0.0", default-features = false }
 sc-basic-authorship = { version = "0.50.0", default-features = false }
-sc-cli = { version = "0.53.0", default-features = false }
+sc-cli = { version = "0.53.1", default-features = false }
 sc-client-api = { version = "40.0.0", default-features = false }
 sc-consensus = { version = "0.50.0", default-features = false }
 sc-consensus-aura = { version = "0.51.0", default-features = false }
 sc-consensus-grandpa = { version = "0.36.0", default-features = false }
 sc-executor = { version = "0.43.0", default-features = false }
-sc-network = { version = "0.51.0", default-features = false }
+sc-network = { version = "0.51.1", default-features = false }
 sc-offchain = { version = "46.0.0", default-features = false }
 sc-service = { version = "0.52.0", default-features = false }
 sc-telemetry = { version = "29.0.0", default-features = false }
-sc-transaction-pool = { version = "40.0.0", default-features = false }
+sc-transaction-pool = { version = "40.1.0", default-features = false }
 sc-transaction-pool-api = { version = "40.0.0", default-features = false }
 sp-api = { version = "37.0.0", default-features = false }
 sp-block-builder = { version = "37.0.0", default-features = false }
@@ -51,7 +51,7 @@ sp-timestamp = { version = "37.0.0", default-features = false }
 substrate-frame-rpc-system = { version = "45.0.0", default-features = false }
 substrate-build-script-utils = { version = "11.0.0", default-features = false }
 codec = { version = "3.7.4", default-features = false, package = "parity-scale-codec" }
-frame-benchmarking = { version = "41.0.0", default-features = false }
+frame-benchmarking = { version = "41.0.1", default-features = false }
 frame-executive = { version = "41.0.0", default-features = false }
 frame-support = { version = "41.0.0", default-features = false }
 frame-system-benchmarking = { version = "41.0.0", default-features = false }
@@ -72,6 +72,10 @@ sp-storage = { version = "22.0.0", default-features = false }
 sp-transaction-pool = { version = "37.0.0", default-features = false }
 sp-version = { version = "40.0.0", default-features = false }
 substrate-wasm-builder = { version = "27.0.0", default-features = false }
+pallet-staking = { version = "41.0.0", default-features = false }
+
+
+
 
 [profile.release]
 opt-level = 3
