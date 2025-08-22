@@ -36,8 +36,17 @@ log_info "Checking required tools..."
 check_command git
 check_command cargo
 check_command rustup
-check_command nix
-check_command docker
+
+# Check optional tools
+if ! command -v nix &> /dev/null; then
+  log_warn "nix is not installed. Nix checks will be skipped."
+  SKIP_NIX=true
+fi
+
+if ! command -v docker &> /dev/null; then
+  log_warn "docker is not installed. Docker checks will be skipped."
+  SKIP_DOCKER=true
+fi
 
 # Get project root directory
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)

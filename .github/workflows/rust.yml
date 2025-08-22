@@ -30,7 +30,14 @@ jobs:
             curl \
             git \
             libssl-dev \
-            pkg-config
+            pkg-config \
+            xz-utils \
+            sudo
+          
+          # Install Nix
+          curl -L https://nixos.org/nix/install | sh -s -- --daemon --yes
+          . /root/.nix-profile/etc/profile.d/nix.sh
+          echo "source /root/.nix-profile/etc/profile.d/nix.sh" >> ~/.bashrc
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
