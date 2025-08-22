@@ -16,12 +16,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v14
-        with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-
       - name: Cache Nix
         uses: DeterminateSystems/magic-nix-cache-action@v8
 
