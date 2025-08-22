@@ -12,20 +12,25 @@ permissions:
 jobs:
   build-test:
     runs-on: [self-hosted, linux, x64, modnet-runner]
+    container:
+      image: rust:1-bookworm
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Rust toolchain (stable)
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-          components: clippy,rustfmt
-
-      - name: Install nightly for Wasm runtime
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          targets: wasm32-unknown-unknown
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            clang \
+            cmake \
+            curl \
+            git \
+            libssl-dev \
+            pkg-config
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -33,18 +38,7 @@ jobs:
           workspaces: |
             . -> target
 
-      - name: Cargo fmt check
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Build (includes runtime Wasm via wasm-builder)
+      - name: Run CI script
+        run: ./scripts/run_ci.sh
         env:
           WASM_BUILD_TOOLCHAIN: nightly
-        run: cargo build --locked --release
-
-      - name: Test
-        env:
-          WASM_BUILD_TOOLCHAIN: nightly
-        run: cargo test --all --locked --release -- --nocapture
