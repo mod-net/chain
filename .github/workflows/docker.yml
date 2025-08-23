@@ -19,6 +19,20 @@ jobs:
   build-and-push:
     runs-on: [self-hosted, linux, x64, modnet-runner]
     steps:
+      - name: setup-workspace
+        run: |
+          rm -rf /__w
+          mkdir -p /__w
+          mkdir -p /__w/_temp
+          mkdir -p /__w/_actions
+          mkdir -p /__w/_tool
+          mkdir -p /__w/_work
+
+          chmod 777 /__w/_temp 2>/dev/null || true
+          chmod 777 /__w/_actions 2>/dev/null || true
+          chmod 777 /__w/_tool 2>/dev/null || true
+          chmod 777 /__w/_work 2>/dev/null || true
+          
       - name: Checkout
         uses: actions/checkout@v4
         with:
