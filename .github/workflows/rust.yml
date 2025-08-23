@@ -54,7 +54,7 @@ jobs:
             software-properties-common
           
           # Configure Git to trust the workspace directory
-          git config --global --add safe.directory "${secrets.RUNNER_WORKSPACE}"
+          git config --global --add safe.directory "${{ github.workspace }}"
           
           # Install Docker CLI only (to use with the mounted Docker socket)
           # Set up Docker repository properly
@@ -83,7 +83,7 @@ jobs:
       - name: Apply pallet-staking patch
         run: |
           # Apply the patch to fix pallet-staking
-          "$secrets.RUNNER_WORKSPACE/scripts/apply-pallet-staking-fix.sh ||     echo "Patch may have already been applied"
+          "${{ github.workspace }}/scripts/apply-pallet-staking-fix.sh" || echo "Patch may have already been applied"
           
       - name: Add wasm32v1-none target
         run: |
@@ -103,6 +103,6 @@ jobs:
           which nix || echo "Nix not found in PATH"
           nix --version || echo "Nix command failed"
           # Run CI script
-          "$secrets.RUNNER_WORKSPACE/scripts/run_ci.sh" --enable-try-runtime
+          "${{ github.workspace }}/scripts/run_ci.sh" --enable-try-runtime
         env:
           WASM_BUILD_TOOLCHAIN: nightly

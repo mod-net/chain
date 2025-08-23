@@ -39,7 +39,7 @@ jobs:
         run: |
           # Install git and cacert
           nix-env -iA nixpkgs.git nixpkgs.cacert
-          git config --global --add safe.directory "${{ secrets.RUNNER_WORKSPACE }}"
+          git config --global --add safe.directory "${{ github.workspace }}"
           
           # Install Node.js for GitHub Actions
           nix-env -iA nixpkgs.nodejs
