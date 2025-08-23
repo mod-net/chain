@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Define environment variables at workflow level
+env:
+  RUST_BACKTRACE: 1
+  WASM_BUILD_TOOLCHAIN: nightly
+
 jobs:
   build-test:
     runs-on: [self-hosted, linux, x64, modnet-runner]
@@ -21,12 +26,12 @@ jobs:
       - name: Fix permissions
         run: |
           # Fix permissions in the workspace directory
-          mkdir -p $GITHUB_WORKSPACE
-          chmod -R 777 $GITHUB_WORKSPACE || true
+          mkdir -p ${{ github.workspace }} 
+          chmod -R 777 ${{ github.workspace }} || true
           
           # Make sure git directory is clean
-          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
-            rm -rf $GITHUB_WORKSPACE/.git || true
+          if [ -d "${{ github.workspace }}/.git" ]; then
+            rm -rf ${{ github.workspace }}/.git || true
           fi
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,10 +42,10 @@ jobs:
       - name: Post-checkout permission fix
         run: |
           # Fix Git directory permissions after checkout
-          chmod -R 777 $GITHUB_WORKSPACE/.git || true
+          chmod -R 777 ${{ github.workspace }}/.git || true
           
           # Configure Git to trust the workspace directory
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "${{ github.workspace }}"
       - name: Install dependencies
         run: |
           apt-get update && apt-get install -y --no-install-recommends \
@@ -60,7 +65,7 @@ jobs:
             software-properties-common
           
           # Configure Git to trust the workspace directory
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "${{ github.workspace }}"
           
           # Install Docker CLI only (to use with the mounted Docker socket)
           # Set up Docker repository properly
@@ -69,7 +74,7 @@ jobs:
           chmod a+r /etc/apt/keyrings/docker.asc
           
           # Add Docker repository
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
           
           # Update and install Docker CLI
           apt-get update
@@ -109,4 +114,4 @@ jobs:
           # Run CI script
           ./scripts/run_ci.sh --enable-try-runtime
         env:
-          WASM_BUILD_TOOLCHAIN: nightly
+          WASM_BUILD_TOOLCHAIN: ${{ env.WASM_BUILD_TOOLCHAIN }}
