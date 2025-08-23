@@ -1,4 +1,4 @@
-version: "3.9"
+version: "3.3"
 services:
   modnet-node:
     container_name: modnet-node
@@ -11,7 +11,7 @@ services:
       - "9933:9933"  # HTTP RPC
       - "30333:30333" # P2P
     volumes:
-      - modnet-data:/data
+      - /data
     command: >
       --base-path /data
       --chain local
@@ -19,6 +19,3 @@ services:
       --rpc-methods safe
       --rpc-external
       --ws-external
-volumes:
-  modnet-data:
-    driver: local
