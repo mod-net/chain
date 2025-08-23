@@ -94,13 +94,26 @@ fi
 if [ -e /var/run/docker.sock ]; then
   chmod 666 /var/run/docker.sock || true
 fi
+
+# Fix Node.js path issue
+if [ -d "/__e/node20" ]; then
+  mkdir -p /usr/bin
+  ln -sf $(which node) /__e/node20/bin/node || true
+fi
 EOF
 
 chmod +x "$RUNNER_DIR/setup-permissions.sh"
 
+# Fix permissions on host before starting container
+log_info "Fixing permissions on host..."
+sudo chmod -R 777 "$RUNNER_DIR" || log_warn "Could not set permissions on runner directory"
+sudo chmod 666 /var/run/docker.sock || log_warn "Could not set permissions on Docker socket"
+
+# Run container with host network and as root initially
 docker run -d --name github-runner \
   --restart always \
   --privileged \
+  --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$RUNNER_DIR":/home/runner \
   -e GITHUB_PAT="$GITHUB_PAT" \
@@ -108,9 +121,12 @@ docker run -d --name github-runner \
   -e RUNNER_NAME="$RUNNER_NAME" \
   -e RUNNER_LABELS="$RUNNER_LABELS" \
   -e RUNNER_WORK_DIRECTORY="_work" \
-  -e RUNNER_UID="$USER_ID" \
-  -e RUNNER_GID="$DOCKER_GID" \
+  -e RUNNER_TOKEN_REPO="$REPO_URL" \
   myoung34/github-runner:latest
+
+# Execute permission fix inside container
+log_info "Setting up permissions inside container..."
+docker exec github-runner bash -c "/home/runner/setup-permissions.sh"
 
 log_info "Waiting for runner to register..."
 sleep 5
