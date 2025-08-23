@@ -19,8 +19,32 @@ jobs:
   build-and-push:
     runs-on: [self-hosted, linux, x64, modnet-runner]
     steps:
+      # Fix permissions before checkout
+      - name: Fix permissions
+        run: |
+          # Fix permissions in the workspace directory
+          sudo mkdir -p $GITHUB_WORKSPACE
+          sudo chown -R $(id -u):$(id -g) $GITHUB_WORKSPACE
+          sudo chmod -R 777 $GITHUB_WORKSPACE
+          
+          # Make sure git directory is clean
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            sudo rm -rf $GITHUB_WORKSPACE/.git
+          fi
+          
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: true
+          
+      - name: Post-checkout permission fix
+        run: |
+          # Fix Git directory permissions after checkout
+          sudo chown -R $(id -u):$(id -g) $GITHUB_WORKSPACE/.git
+          sudo chmod -R 777 $GITHUB_WORKSPACE/.git
+          
+          # Configure Git to trust the workspace directory
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

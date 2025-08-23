@@ -17,8 +17,33 @@ jobs:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     steps:
+      # Fix permissions before checkout
+      - name: Fix permissions
+        run: |
+          # Fix permissions in the workspace directory
+          sudo mkdir -p $GITHUB_WORKSPACE
+          sudo chown -R $(id -u):$(id -g) $GITHUB_WORKSPACE
+          sudo chmod -R 777 $GITHUB_WORKSPACE
+          
+          # Make sure git directory is clean
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            sudo rm -rf $GITHUB_WORKSPACE/.git
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Use clean checkout to avoid permission issues
+          clean: true
+          
+      - name: Post-checkout permission fix
+        run: |
+          # Fix Git directory permissions after checkout
+          sudo chown -R $(id -u):$(id -g) $GITHUB_WORKSPACE/.git
+          sudo chmod -R 777 $GITHUB_WORKSPACE/.git
+          
+          # Configure Git to trust the workspace directory
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Install dependencies
         run: |
