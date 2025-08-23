@@ -10,8 +10,9 @@ services:
       - "9944:9944"  # WebSocket RPC
       - "9933:9933"  # HTTP RPC
       - "30333:30333" # P2P
+    # Using a bind mount instead of a volume to avoid ContainerConfig error
     volumes:
-      - /data
+      - ./data:/data
     command: >
       --base-path /data
       --chain local
