@@ -36,14 +36,14 @@ jobs:
       - name: Ensure Docker is available
         run: |
           docker version
-          docker compose version || docker --help
+          docker-compose version || docker-compose --help
 
       - name: Build and deploy with Compose
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
           # Build local image and (re)create service
-          docker compose up -d --build
+          docker-compose up -d --build
 
       - name: Show running containers
         run: |
