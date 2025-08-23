@@ -23,13 +23,12 @@ jobs:
       - name: Fix permissions
         run: |
           # Fix permissions in the workspace directory
-          sudo mkdir -p $GITHUB_WORKSPACE
-          sudo chown -R $(id -u):$(id -g) $GITHUB_WORKSPACE
-          sudo chmod -R 777 $GITHUB_WORKSPACE
+          mkdir -p $GITHUB_WORKSPACE
+          chmod -R 777 $GITHUB_WORKSPACE || true
           
           # Make sure git directory is clean
           if [ -d "$GITHUB_WORKSPACE/.git" ]; then
-            sudo rm -rf $GITHUB_WORKSPACE/.git
+            rm -rf $GITHUB_WORKSPACE/.git || true
           fi
           
       - name: Checkout
@@ -40,8 +39,7 @@ jobs:
       - name: Post-checkout permission fix
         run: |
           # Fix Git directory permissions after checkout
-          sudo chown -R $(id -u):$(id -g) $GITHUB_WORKSPACE/.git
-          sudo chmod -R 777 $GITHUB_WORKSPACE/.git
+          chmod -R 777 $GITHUB_WORKSPACE/.git || true
           
           # Configure Git to trust the workspace directory
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
