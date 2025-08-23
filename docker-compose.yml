@@ -21,3 +21,4 @@ services:
       --ws-external
 volumes:
   modnet-data:
+    driver: local
