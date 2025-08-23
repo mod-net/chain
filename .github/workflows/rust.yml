@@ -17,24 +17,30 @@ jobs:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     steps:
-      - name: setup-workspace
+      # Fix permissions before checkout
+      - name: Fix permissions
         run: |
-          rm -rf /__w
-          mkdir -p /__w
-          mkdir -p /__w/_temp
-          mkdir -p /__w/_actions
-          mkdir -p /__w/_tool
-          mkdir -p /__w/_work
-
-          chmod 777 /__w/_temp 2>/dev/null || true
-          chmod 777 /__w/_actions 2>/dev/null || true
-          chmod 777 /__w/_tool 2>/dev/null || true
-          chmod 777 /__w/_work 2>/dev/null || true
-
+          # Fix permissions in the workspace directory
+          mkdir -p $GITHUB_WORKSPACE
+          chmod -R 777 $GITHUB_WORKSPACE || true
+          
+          # Make sure git directory is clean
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            rm -rf $GITHUB_WORKSPACE/.git || true
+          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # Use clean checkout to avoid permission issues
           clean: true
+          
+      - name: Post-checkout permission fix
+        run: |
+          # Fix Git directory permissions after checkout
+          chmod -R 777 $GITHUB_WORKSPACE/.git || true
+          
+          # Configure Git to trust the workspace directory
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Install dependencies
         run: |
           apt-get update && apt-get install -y --no-install-recommends \
@@ -54,7 +60,7 @@ jobs:
             software-properties-common
           
           # Configure Git to trust the workspace directory
-          git config --global --add safe.directory "${{ github.workspace }}"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           
           # Install Docker CLI only (to use with the mounted Docker socket)
           # Set up Docker repository properly
@@ -73,17 +79,15 @@ jobs:
           curl -L https://nixos.org/nix/install | sh -s -- --daemon --yes
           . /root/.nix-profile/etc/profile.d/nix.sh
           echo "source /root/.nix-profile/etc/profile.d/nix.sh" >> ~/.bashrc
-
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             . -> target
-
       - name: Apply pallet-staking patch
         run: |
           # Apply the patch to fix pallet-staking
-          "${{ github.workspace }}/scripts/apply-pallet-staking-fix.sh" || echo "Patch may have already been applied"
+          ./scripts/apply-pallet-staking-fix.sh || echo "Patch may have already been applied"
           
       - name: Add wasm32v1-none target
         run: |
@@ -103,6 +107,6 @@ jobs:
           which nix || echo "Nix not found in PATH"
           nix --version || echo "Nix command failed"
           # Run CI script
-          "${{ github.workspace }}/scripts/run_ci.sh" --enable-try-runtime
+          ./scripts/run_ci.sh --enable-try-runtime
         env:
           WASM_BUILD_TOOLCHAIN: nightly

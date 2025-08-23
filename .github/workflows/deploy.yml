@@ -16,35 +16,19 @@ jobs:
   deploy:
     runs-on: [self-hosted, linux, x64, modnet-runner]
     steps:
-      - name: setup-workspace
-        run: |
-          rm -rf /__w
-          mkdir -p /__w
-          mkdir -p /__w/_temp
-          mkdir -p /__w/_actions
-          mkdir -p /__w/_tool
-          mkdir -p /__w/_work
-
-          chmod 777 /__w/_temp 2>/dev/null || true
-          chmod 777 /__w/_actions 2>/dev/null || true
-          chmod 777 /__w/_tool 2>/dev/null || true
-          chmod 777 /__w/_work 2>/dev/null || true
-          
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Ensure Docker is available
         run: |
           docker version
-          docker-compose version || docker-compose --help
-
+          docker compose version || docker --help
       - name: Build and deploy with Compose
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
           # Build local image and (re)create service
-          docker-compose up -d --build
-
+          docker compose up -d --build
       - name: Show running containers
         run: |
           docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
