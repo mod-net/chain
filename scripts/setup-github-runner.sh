@@ -51,7 +51,12 @@ log_info "Runner labels: $RUNNER_LABELS"
 
 # Create runner directory
 RUNNER_DIR="$HOME/actions-runner"
+RUNNER_WORK_DIR="$RUNNER_DIR/_work"
 mkdir -p "$RUNNER_DIR"
+mkdir -p "$RUNNER_WORK_DIR"
+
+# Set proper permissions
+chmod -R 777 "$RUNNER_DIR"
 cd "$RUNNER_DIR"
 
 # Check if runner is already running
@@ -61,10 +66,41 @@ if docker ps | grep -q "github-runner"; then
   docker rm github-runner || true
 fi
 
+# Get current user ID and group ID
+USER_ID=$(id -u)
+GROUP_ID=$(id -g)
+
+# Get Docker group ID for socket access
+DOCKER_GID=$(getent group docker | cut -d: -f3 || echo "$GROUP_ID")
+
 # Start the runner in Docker
 log_info "Starting GitHub runner in Docker..."
+log_info "Using user ID: $USER_ID, group ID: $GROUP_ID, Docker group ID: $DOCKER_GID"
+
+# Add additional setup commands
+cat > "$RUNNER_DIR/setup-permissions.sh" << 'EOF'
+#!/bin/bash
+set -e
+
+# Fix permissions in the work directory
+chmod -R 777 /home/runner/_work || true
+
+# Add the runner user to the docker group
+if getent group docker > /dev/null; then
+  usermod -aG docker runner || true
+fi
+
+# Make sure the docker socket is accessible
+if [ -e /var/run/docker.sock ]; then
+  chmod 666 /var/run/docker.sock || true
+fi
+EOF
+
+chmod +x "$RUNNER_DIR/setup-permissions.sh"
+
 docker run -d --name github-runner \
   --restart always \
+  --privileged \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$RUNNER_DIR":/home/runner \
   -e GITHUB_PAT="$GITHUB_PAT" \
@@ -72,6 +108,8 @@ docker run -d --name github-runner \
   -e RUNNER_NAME="$RUNNER_NAME" \
   -e RUNNER_LABELS="$RUNNER_LABELS" \
   -e RUNNER_WORK_DIRECTORY="_work" \
+  -e RUNNER_UID="$USER_ID" \
+  -e RUNNER_GID="$DOCKER_GID" \
   myoung34/github-runner:latest
 
 log_info "Waiting for runner to register..."
