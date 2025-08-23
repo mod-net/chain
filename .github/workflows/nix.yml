@@ -29,6 +29,13 @@ jobs:
             rm -rf $GITHUB_WORKSPACE/.git || true
           fi
           
+          # Ensure workflows directory is writable
+          if [ -d "$GITHUB_WORKSPACE/.github/workflows" ]; then
+            # Use nix-shell to get sudo-like capabilities
+            mkdir -p $GITHUB_WORKSPACE/.github
+            chmod -R 777 $GITHUB_WORKSPACE/.github || true
+          fi
+          
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -41,8 +48,14 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # Install git and cacert
           nix-env -iA nixpkgs.git nixpkgs.cacert
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          
+          # Install Node.js for GitHub Actions
+          nix-env -iA nixpkgs.nodejs
+          mkdir -p /__e/node20/bin
+          ln -sf $(which node) /__e/node20/bin/node
 
       - name: Cache Nix
         uses: DeterminateSystems/magic-nix-cache-action@v8

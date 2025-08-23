@@ -31,6 +31,12 @@ jobs:
             rm -rf $GITHUB_WORKSPACE/.git || true
           fi
           
+          # Ensure workflows directory is writable
+          if [ -d "$GITHUB_WORKSPACE/.github/workflows" ]; then
+            sudo chown -R $(id -u):$(id -g) $GITHUB_WORKSPACE/.github
+            chmod -R 777 $GITHUB_WORKSPACE/.github || true
+          fi
+          
       - name: Checkout
         uses: actions/checkout@v4
         with:
