@@ -21,19 +21,19 @@ jobs:
       - name: Fix permissions
         run: |
           # Fix permissions in the workspace directory
-          mkdir -p $GITHUB_WORKSPACE
-          chmod -R 777 $GITHUB_WORKSPACE || true
+          mkdir -p $RUNNER_WORKSPACE
+          chmod -R 777 $RUNNER_WORKSPACE || true
           
           # Make sure git directory is clean
-          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
-            rm -rf $GITHUB_WORKSPACE/.git || true
+          if [ -d "$RUNNER_WORKSPACE/.git" ]; then
+            rm -rf $RUNNER_WORKSPACE/.git || true
           fi
           
           # Ensure workflows directory is writable
-          if [ -d "$GITHUB_WORKSPACE/.github/workflows" ]; then
+          if [ -d "$RUNNER_WORKSPACE/.github/workflows" ]; then
             # Use nix-shell to get sudo-like capabilities
-            mkdir -p $GITHUB_WORKSPACE/.github
-            chmod -R 777 $GITHUB_WORKSPACE/.github || true
+            mkdir -p $RUNNER_WORKSPACE/.github
+            chmod -R 777 $RUNNER_WORKSPACE/.github || true
           fi
           
       - name: Checkout
@@ -44,13 +44,13 @@ jobs:
       - name: Post-checkout permission fix
         run: |
           # Fix Git directory permissions after checkout
-          chmod -R 777 $GITHUB_WORKSPACE/.git || true
+          chmod -R 777 $RUNNER_WORKSPACE/.git || true
 
       - name: Install dependencies
         run: |
           # Install git and cacert
           nix-env -iA nixpkgs.git nixpkgs.cacert
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$RUNNER_WORKSPACE"
           
           # Install Node.js for GitHub Actions
           nix-env -iA nixpkgs.nodejs

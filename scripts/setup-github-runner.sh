@@ -50,7 +50,7 @@ log_info "Runner name: $RUNNER_NAME"
 log_info "Runner labels: $RUNNER_LABELS"
 
 # Create runner directory
-RUNNER_DIR="$HOME/actions-runner"
+RUNNER_DIR="/home/github-runner/actions-runner"
 RUNNER_WORK_DIR="$RUNNER_DIR/_work"
 mkdir -p "$RUNNER_DIR"
 mkdir -p "$RUNNER_WORK_DIR"
@@ -82,9 +82,6 @@ cat > "$RUNNER_DIR/setup-permissions.sh" << 'EOF'
 #!/bin/bash
 set -e
 
-# Fix permissions in the work directory
-chmod -R 777 /home/runner/_work || true
-
 # Add the runner user to the docker group
 if getent group docker > /dev/null; then
   usermod -aG docker runner || true
@@ -94,6 +91,23 @@ fi
 if [ -e /var/run/docker.sock ]; then
   chmod 666 /var/run/docker.sock || true
 fi
+
+# Create necessary directories for GitHub Actions without changing permissions of existing files
+# Only create directories if they don't exist
+mkdir -p /__w/_temp
+mkdir -p /__w/_actions
+mkdir -p /__w/_tool
+mkdir -p /__w/_work
+
+# Set permissions only on newly created directories, not recursively
+chmod 777 /__w/_temp 2>/dev/null || true
+chmod 777 /__w/_actions 2>/dev/null || true
+chmod 777 /__w/_tool 2>/dev/null || true
+chmod 777 /__w/_work 2>/dev/null || true
+
+# Create work directory in the runner home if it doesn't exist
+mkdir -p /home/runner/_work 2>/dev/null || true
+chmod 777 /home/runner/_work 2>/dev/null || true
 
 # Create dummy node executable to prevent errors during cleanup
 mkdir -p /__e/node20/bin
@@ -106,6 +120,10 @@ chmod +x /__e/node20/bin/node
 EOF
 
 chmod +x "$RUNNER_DIR/setup-permissions.sh"
+
+# Clean up existing runner files before starting container
+log_info "Cleaning up existing runner files..."
+rm -rf "$RUNNER_DIR/_work" || log_warn "Could not remove existing work directory"
 
 # Fix permissions on host before starting container
 log_info "Fixing permissions on host..."
@@ -120,6 +138,7 @@ docker run -d --name github-runner \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$RUNNER_DIR":/home/runner \
   -e GITHUB_PAT="$GITHUB_PAT" \
+  -e GITHUB_ACCESS_TOKEN="$GITHUB_PAT" \
   -e RUNNER_REPOSITORY_URL="$REPO_URL" \
   -e RUNNER_NAME="$RUNNER_NAME" \
   -e RUNNER_LABELS="$RUNNER_LABELS" \
