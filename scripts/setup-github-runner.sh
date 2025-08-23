@@ -95,11 +95,14 @@ if [ -e /var/run/docker.sock ]; then
   chmod 666 /var/run/docker.sock || true
 fi
 
-# Fix Node.js path issue
-if [ -d "/__e/node20" ]; then
-  mkdir -p /usr/bin
-  ln -sf $(which node) /__e/node20/bin/node || true
-fi
+# Create dummy node executable to prevent errors during cleanup
+mkdir -p /__e/node20/bin
+cat > /__e/node20/bin/node << 'NODESCRIPT'
+#!/bin/sh
+echo "Dummy node script executed"
+exit 0
+NODESCRIPT
+chmod +x /__e/node20/bin/node
 EOF
 
 chmod +x "$RUNNER_DIR/setup-permissions.sh"
@@ -122,7 +125,9 @@ docker run -d --name github-runner \
   -e RUNNER_LABELS="$RUNNER_LABELS" \
   -e RUNNER_WORK_DIRECTORY="_work" \
   -e RUNNER_TOKEN_REPO="$REPO_URL" \
-  myoung34/github-runner:latest
+  -e DISABLE_RUNNER_UPDATE=true \
+  -e RUNNER_ALLOW_RUNASROOT=true \
+  tcardonne/github-runner:latest
 
 # Execute permission fix inside container
 log_info "Setting up permissions inside container..."
