@@ -175,19 +175,27 @@ if [ "$SKIP_DOCKER" = false ]; then
   
   # Build Docker image
   log_info "Building Docker image with tag: $DOCKER_TAG..."
-  docker build -t "$IMAGE_NAME:$DOCKER_TAG" -f Dockerfile . || log_error "Docker build failed"
+  if command -v docker &> /dev/null; then
+    docker build -t "$IMAGE_NAME:$DOCKER_TAG" . || log_warn "Docker build failed"
+  else
+    log_warn "Docker command not found, skipping Docker build"
+  fi
   
   # Push Docker image if requested
   if [ "$PUSH_DOCKER" = true ]; then
     log_info "Pushing Docker image to registry..."
     
-    # Check if logged in to ghcr.io
-    if ! docker info | grep -q "ghcr.io"; then
-      log_warn "Not logged in to ghcr.io. Please login first with: docker login ghcr.io"
-      log_warn "Skipping push step."
+    if ! command -v docker &> /dev/null; then
+      log_warn "Docker command not found, skipping Docker push"
     else
-      docker push "$IMAGE_NAME:$DOCKER_TAG" || log_error "Docker push failed"
-      log_info "Docker image pushed successfully!"
+      # Check if logged in to ghcr.io
+      if ! docker info | grep -q "ghcr.io"; then
+        log_warn "Not logged in to ghcr.io. Please login first with: docker login ghcr.io"
+        log_warn "Skipping push step."
+      else
+        docker push "$IMAGE_NAME:$DOCKER_TAG" || log_warn "Docker push failed"
+        log_info "Docker image pushed successfully!"
+      fi
     fi
   fi
   

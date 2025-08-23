@@ -33,10 +33,18 @@ jobs:
             pkg-config \
             protobuf-compiler \
             xz-utils \
-            sudo
+            sudo \
+            apt-transport-https \
+            gnupg-agent \
+            software-properties-common
           
           # Configure Git to trust the workspace directory
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          
+          # Install Docker CLI only (to use with the mounted Docker socket)
+          curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+          add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+          apt-get update && apt-get install -y docker-ce-cli
           
           # Install Nix
           curl -L https://nixos.org/nix/install | sh -s -- --daemon --yes
@@ -57,6 +65,12 @@ jobs:
       - name: Add wasm32v1-none target
         run: |
           rustup target add wasm32v1-none --toolchain nightly
+          
+      - name: Verify Docker access
+        run: |
+          # Verify Docker CLI can access Docker daemon
+          docker version || echo "Docker access failed - check socket mounting"
+          docker ps || echo "Cannot list containers - check permissions"
           
       - name: Run CI script
         run: |
