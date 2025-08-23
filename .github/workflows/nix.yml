@@ -17,35 +17,10 @@ jobs:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     steps:
-      # Fix permissions before checkout
-      - name: Fix permissions
-        run: |
-          # Fix permissions in the workspace directory
-          mkdir -p $RUNNER_WORKSPACE
-          chmod -R 777 $RUNNER_WORKSPACE || true
-          
-          # Make sure git directory is clean
-          if [ -d "$RUNNER_WORKSPACE/.git" ]; then
-            rm -rf $RUNNER_WORKSPACE/.git || true
-          fi
-          
-          # Ensure workflows directory is writable
-          if [ -d "$RUNNER_WORKSPACE/.github/workflows" ]; then
-            # Use nix-shell to get sudo-like capabilities
-            mkdir -p $RUNNER_WORKSPACE/.github
-            chmod -R 777 $RUNNER_WORKSPACE/.github || true
-          fi
-          
       - name: Checkout
         uses: actions/checkout@v4
         with:
           clean: true
-          
-      - name: Post-checkout permission fix
-        run: |
-          # Fix Git directory permissions after checkout
-          chmod -R 777 $RUNNER_WORKSPACE/.git || true
-
       - name: Install dependencies
         run: |
           # Install git and cacert
