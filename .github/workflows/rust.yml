@@ -30,7 +30,7 @@ jobs:
           chmod 777 /__w/_actions 2>/dev/null || true
           chmod 777 /__w/_tool 2>/dev/null || true
           chmod 777 /__w/_work 2>/dev/null || true
-          
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -54,7 +54,7 @@ jobs:
             software-properties-common
           
           # Configure Git to trust the workspace directory
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "${secrets.RUNNER_WORKSPACE}"
           
           # Install Docker CLI only (to use with the mounted Docker socket)
           # Set up Docker repository properly
@@ -83,7 +83,7 @@ jobs:
       - name: Apply pallet-staking patch
         run: |
           # Apply the patch to fix pallet-staking
-          ./scripts/apply-pallet-staking-fix.sh || echo "Patch may have already been applied"
+          "$secrets.RUNNER_WORKSPACE/scripts/apply-pallet-staking-fix.sh ||     echo "Patch may have already been applied"
           
       - name: Add wasm32v1-none target
         run: |
@@ -103,6 +103,6 @@ jobs:
           which nix || echo "Nix not found in PATH"
           nix --version || echo "Nix command failed"
           # Run CI script
-          ./scripts/run_ci.sh --enable-try-runtime
+          "$secrets.RUNNER_WORKSPACE/scripts/run_ci.sh" --enable-try-runtime
         env:
           WASM_BUILD_TOOLCHAIN: nightly
