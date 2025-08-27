@@ -157,7 +157,11 @@ impl pallet_sudo::Config for Runtime {
     type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
-/// Configure the pallet-template in pallets/template.
-impl pallet_template::Config for Runtime {
-    type WeightInfo = pallet_template::weights::SubstrateWeight<Runtime>;
+/// Configure the Modules pallet for real blockchain transactions.
+impl pallet_modules::Config for Runtime {
+    type WeightInfo = pallet_modules::weights::SubstrateWeight<Runtime>;
+    /// Maximum length for public keys
+    type MaxKeyLength = ConstU32<64>;
+    /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
+    type MaxCidLength = ConstU32<64>;
 }
