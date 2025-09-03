@@ -1,4 +1,6 @@
-//! # Module Registry Pallet
+// Modules Pallet
+// Responsible for the registry and management of
+// Modules and Replicants
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
