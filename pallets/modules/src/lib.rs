@@ -3,6 +3,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod ext;
+pub mod module;
 pub use pallet::*;
 
 #[cfg(test)]
@@ -26,7 +27,10 @@ use frame_system::pallet_prelude::BlockNumberFor;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_support::{pallet_prelude::*};
+    use frame_support::{
+        pallet_prelude::*,
+        sp_runtime::Percent,
+    };
     use frame_system::pallet_prelude::*;
     extern crate alloc;
     use alloc::vec::Vec;
@@ -37,7 +41,7 @@ pub mod pallet {
     /// The pallet's configuration trait.
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        /// A type representing the weights required by the dispatchables of this pallet.
+        /// A type representing the weights required by the extrinsics of this pallet.
         type WeightInfo: WeightInfo;
         type Currency: Currency<Self::AccountId, Balance = u128>
             + LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>>
@@ -45,9 +49,25 @@ pub mod pallet {
             + NamedReservableCurrency<Self::AccountId, ReserveIdentifier = [u8; 8]>
             + Send
             + Sync;
+
+        // TODO: Remove this
         /// Maximum length for public keys (in bytes)
         #[pallet::constant]
         type MaxKeyLength: Get<u32>;
+        // TODO: ---
+
+        /// Maximum number of Modules a single User (Account) can register
+        #[pallet::constant]
+        type MaxUserModules: Get<u16>;
+        /// Maximum number of Replicants that can be active per Module
+        #[pallet::constant]
+        type MaxModuleReplicants: Get<u16>;
+        /// Maximum Take Percentage a Module Owner can set
+        #[pallet::constant]
+        type MaxModuleTake: Get<Percent>;
+        /// Maximum length for Module Title String
+        #[pallet::constant]
+        type MaxModuleTitleLength: Get<u32>;
         /// Maximum length for Storage Reference data (in bytes), e.g. IPFS CID, S3 URL, etc.
         #[pallet::constant]
         type MaxStorageReferenceLength: Get<u32>;

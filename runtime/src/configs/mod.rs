@@ -35,7 +35,7 @@ use frame_support::{
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{ConstFeeMultiplier, FungibleAdapter, Multiplier};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_runtime::{traits::One, Perbill};
+use sp_runtime::{traits::One, Perbill, Percent};
 use sp_version::RuntimeVersion;
 
 // Local module imports
@@ -157,12 +157,28 @@ impl pallet_sudo::Config for Runtime {
     type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+    pub const MaxUserModules: u16 = u16::MAX;
+    pub const MaxModuleReplicants: u16 = u16::MAX;
+    pub const MaxModuleTake: Percent = Percent::from_percent(5);
+}
+
 /// Configure the Modules pallet for real blockchain transactions.
 impl pallet_modules::Config for Runtime {
     type Currency = Balances;
     type WeightInfo = pallet_modules::weights::SubstrateWeight<Runtime>;
+
     /// Maximum length for public keys
     type MaxKeyLength = ConstU32<64>;
+
+    /// Maximum number of Modules a single User (Account) can register
+    type MaxUserModules = MaxUserModules;
+    /// Maximum number of Replicants that can be active per Module
+    type MaxModuleReplicants = MaxModuleReplicants;
+    /// Maximum take percentage a Module Owner can set
+    type MaxModuleTake = MaxModuleTake;
+    /// Maximum length for Module Titles (basing 78 characters on recommendations from RFC 5322)
+    type MaxModuleTitleLength = ConstU32<78>;
     /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
     type MaxStorageReferenceLength = ConstU32<64>;
 }

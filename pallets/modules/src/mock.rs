@@ -5,8 +5,7 @@ use frame_support::{
 };
 use sp_core::H256;
 use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup},
-    BuildStorage,
+    BuildStorage, Percent, traits::{BlakeTwo256, IdentityLookup}
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -76,14 +75,26 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
+
     pub const MaxKeyLength: u32 = 128;
+
+    pub const MaxUserModules: u16 = u16::MAX;
+    pub const MaxModuleReplicants: u16 = u16::MAX;
+    pub const MaxModuleTake: Percent = Percent::from_percent(5);
+    pub const MaxModuleTitleLength: u32 = 78;
     pub const MaxStorageReferenceLength: u32 = 128;
 }
 
 impl pallet_modules::Config for Test {
     type Currency = Balances;
     type WeightInfo = ();
+
     type MaxKeyLength = MaxKeyLength;
+
+    type MaxUserModules = MaxUserModules;
+    type MaxModuleReplicants = MaxModuleReplicants;
+    type MaxModuleTake = MaxModuleTake;
+    type MaxModuleTitleLength = MaxModuleTitleLength;
     type MaxStorageReferenceLength = MaxStorageReferenceLength;
 }
 
