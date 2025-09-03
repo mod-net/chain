@@ -55,7 +55,7 @@ parameter_types! {
 impl pallet_module_registry::Config for Test {
     type WeightInfo = ();
     type MaxKeyLength = MaxKeyLength;
-    type MaxCidLength = MaxCidLength;
+    type MaxStorageReferenceLength = MaxCidLength;
 }
 
 // Build genesis storage according to the mock runtime.

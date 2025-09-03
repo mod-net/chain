@@ -1,32 +1,4 @@
 //! # Module Registry Pallet
-//!
-//! A Substrate pallet for managing a decentralized module registry with multi-chain support.
-//! This pallet provides a simple key-value storage system where:
-//! - Keys are public keys in various formats (Ed25519, Ethereum, Solana) stored as `Vec<u8>`
-//! - Values are IPFS CIDs pointing to module metadata stored as `Vec<u8>`
-//!
-//! ## Overview
-//!
-//! This pallet implements:
-//! - Multi-chain public key support via flexible `Vec<u8>` keys
-//! - IPFS CID storage for off-chain metadata references
-//! - Content-addressable metadata via IPFS
-//! - Reduced on-chain storage costs (only CIDs stored)
-//! - Chain-agnostic design for easy integration
-//!
-//! ## Storage Design
-//!
-//! The core storage is a simple StorageMap:
-//! - Key: `Vec<u8>` - Public key in various formats (flexible to support all chains)
-//! - Value: `Vec<u8>` - IPFS CID pointing to module metadata
-//!
-//! ## Functionality
-//!
-//! - `register_module`: Store module metadata CID on-chain
-//! - `get_module`: Retrieve module metadata CID by public key
-//! - `remove_module`: Delete module from registry
-//! - Key validation for different public key formats
-//! - CID validation for IPFS references
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -63,9 +35,9 @@ pub mod pallet {
         /// Maximum length for public keys (in bytes)
         #[pallet::constant]
         type MaxKeyLength: Get<u32>;
-        /// Maximum length for IPFS CIDs (in bytes)
+        /// Maximum length for Storage Reference data (in bytes), e.g. IPFS CID, S3 URL, etc.
         #[pallet::constant]
-        type MaxCidLength: Get<u32>;
+        type MaxStorageReferenceLength: Get<u32>;
     }
 
     /// Storage map for module registry.
@@ -76,7 +48,7 @@ pub mod pallet {
         _,
         Blake2_128Concat,
         BoundedVec<u8, T::MaxKeyLength>,
-        BoundedVec<u8, T::MaxCidLength>,
+        BoundedVec<u8, T::MaxStorageReferenceLength>,
         OptionQuery,
     >;
 
@@ -89,7 +61,7 @@ pub mod pallet {
             /// The public key used as identifier.
             key: BoundedVec<u8, T::MaxKeyLength>,
             /// The IPFS CID of the module metadata.
-            cid: BoundedVec<u8, T::MaxCidLength>,
+            cid: BoundedVec<u8, T::MaxStorageReferenceLength>,
             /// The account who registered the module.
             who: T::AccountId,
         },
@@ -98,7 +70,7 @@ pub mod pallet {
             /// The public key used as identifier.
             key: BoundedVec<u8, T::MaxKeyLength>,
             /// The new IPFS CID of the module metadata.
-            cid: BoundedVec<u8, T::MaxCidLength>,
+            cid: BoundedVec<u8, T::MaxStorageReferenceLength>,
             /// The account who updated the module.
             who: T::AccountId,
         },
@@ -162,7 +134,7 @@ pub mod pallet {
             // Convert to bounded vectors
             let bounded_key: BoundedVec<u8, T::MaxKeyLength> =
                 key.try_into().map_err(|_| Error::<T>::KeyTooLong)?;
-            let bounded_cid: BoundedVec<u8, T::MaxCidLength> =
+            let bounded_cid: BoundedVec<u8, T::MaxStorageReferenceLength> =
                 cid.try_into().map_err(|_| Error::<T>::CidTooLong)?;
 
             // Check if module already exists
@@ -209,7 +181,7 @@ pub mod pallet {
             // Convert to bounded vectors
             let bounded_key: BoundedVec<u8, T::MaxKeyLength> =
                 key.try_into().map_err(|_| Error::<T>::KeyTooLong)?;
-            let bounded_cid: BoundedVec<u8, T::MaxCidLength> =
+            let bounded_cid: BoundedVec<u8, T::MaxStorageReferenceLength> =
                 cid.try_into().map_err(|_| Error::<T>::CidTooLong)?;
 
             // Check if module exists
@@ -331,7 +303,7 @@ pub mod pallet {
 
             // Check length constraints
             ensure!(
-                cid.len() <= T::MaxCidLength::get() as usize,
+                cid.len() <= T::MaxStorageReferenceLength::get() as usize,
                 Error::<T>::CidTooLong
             );
 
@@ -368,7 +340,7 @@ pub mod pallet {
         /// # Returns
         /// * `Some(cid)` if the module exists
         /// * `None` if the module doesn't exist
-        pub fn get_module(key: &[u8]) -> Option<BoundedVec<u8, T::MaxCidLength>> {
+        pub fn get_module(key: &[u8]) -> Option<BoundedVec<u8, T::MaxStorageReferenceLength>> {
             let bounded_key: BoundedVec<u8, T::MaxKeyLength> = key.to_vec().try_into().ok()?;
             Modules::<T>::get(&bounded_key)
         }

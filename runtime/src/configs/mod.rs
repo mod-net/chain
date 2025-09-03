@@ -163,5 +163,5 @@ impl pallet_modules::Config for Runtime {
     /// Maximum length for public keys
     type MaxKeyLength = ConstU32<64>;
     /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
-    type MaxCidLength = ConstU32<64>;
+    type MaxStorageReferenceLength = ConstU32<64>;
 }
