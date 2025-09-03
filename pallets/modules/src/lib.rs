@@ -2,6 +2,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod ext;
 pub use pallet::*;
 
 #[cfg(test)]
@@ -16,10 +17,16 @@ mod benchmarking;
 pub mod weights;
 pub use weights::*;
 
+pub(crate) use ext::*;
+use frame_support::traits::{
+    Currency, InspectLockableCurrency, LockableCurrency, NamedReservableCurrency,
+};
+use frame_system::pallet_prelude::BlockNumberFor;
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_support::pallet_prelude::*;
+    use frame_support::{pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     extern crate alloc;
     use alloc::vec::Vec;
@@ -32,6 +39,12 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// A type representing the weights required by the dispatchables of this pallet.
         type WeightInfo: WeightInfo;
+        type Currency: Currency<Self::AccountId, Balance = u128>
+            + LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>>
+            + InspectLockableCurrency<Self::AccountId>
+            + NamedReservableCurrency<Self::AccountId, ReserveIdentifier = [u8; 8]>
+            + Send
+            + Sync;
         /// Maximum length for public keys (in bytes)
         #[pallet::constant]
         type MaxKeyLength: Get<u32>;

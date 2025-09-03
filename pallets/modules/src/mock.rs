@@ -1,7 +1,7 @@
-use crate as pallet_module_registry;
+use crate as pallet_modules;
 use frame_support::{
     derive_impl, parameter_types,
-    traits::{ConstU16, ConstU64},
+    traits::{ConstU16, ConstU32, ConstU64, ConstU128, VariantCountOf},
 };
 use sp_core::H256;
 use sp_runtime::{
@@ -11,12 +11,19 @@ use sp_runtime::{
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
+/// Balance of an account.
+pub type Balance = u128;
+
+/// Existential deposit.
+pub const EXISTENTIAL_DEPOSIT: Balance = 1_000_000_000;
+
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
     pub enum Test
     {
         System: frame_system,
-        ModuleRegistry: pallet_module_registry,
+        Balances: pallet_balances,
+        ModuleRegistry: pallet_modules,
     }
 );
 
@@ -38,7 +45,7 @@ impl frame_system::Config for Test {
     type BlockHashCount = ConstU64<250>;
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = ();
+    type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
@@ -47,15 +54,37 @@ impl frame_system::Config for Test {
     type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-parameter_types! {
-    pub const MaxKeyLength: u32 = 128;
-    pub const MaxCidLength: u32 = 128;
+
+#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig as pallet_balances::DefaultConfig)]
+impl pallet_balances::Config for Test {
+    type MaxLocks = ConstU32<50>;
+    type MaxReserves = ConstU32<50>;
+    type ReserveIdentifier = [u8; 8];
+    /// The type for recording an account's balance.
+    type Balance = Balance;
+    /// The ubiquitous event type.
+    type RuntimeEvent = RuntimeEvent;
+    type DustRemoval = ();
+    type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
+    type AccountStore = System;
+    type WeightInfo = pallet_balances::weights::SubstrateWeight<Test>;
+    type FreezeIdentifier = RuntimeFreezeReason;
+    type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
+    type RuntimeHoldReason = RuntimeHoldReason;
+    type RuntimeFreezeReason = RuntimeFreezeReason;
+    type DoneSlashHandler = ();
 }
 
-impl pallet_module_registry::Config for Test {
+parameter_types! {
+    pub const MaxKeyLength: u32 = 128;
+    pub const MaxStorageReferenceLength: u32 = 128;
+}
+
+impl pallet_modules::Config for Test {
+    type Currency = Balances;
     type WeightInfo = ();
     type MaxKeyLength = MaxKeyLength;
-    type MaxStorageReferenceLength = MaxCidLength;
+    type MaxStorageReferenceLength = MaxStorageReferenceLength;
 }
 
 // Build genesis storage according to the mock runtime.

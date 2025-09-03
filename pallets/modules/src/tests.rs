@@ -21,7 +21,7 @@ fn register_module_works() {
 
         // Check that the module was stored
         let bounded_key: BoundedVec<u8, MaxKeyLength> = key.try_into().unwrap();
-        let bounded_cid: BoundedVec<u8, MaxCidLength> = cid.try_into().unwrap();
+        let bounded_cid: BoundedVec<u8, MaxStorageReferenceLength> = cid.try_into().unwrap();
 
         assert_eq!(
             ModuleRegistry::modules(&bounded_key),
@@ -138,7 +138,7 @@ fn update_module_works() {
 
         // Check that the module was updated
         let bounded_key: BoundedVec<u8, MaxKeyLength> = key.try_into().unwrap();
-        let bounded_cid2: BoundedVec<u8, MaxCidLength> = cid2.try_into().unwrap();
+        let bounded_cid2: BoundedVec<u8, MaxStorageReferenceLength> = cid2.try_into().unwrap();
 
         assert_eq!(
             ModuleRegistry::modules(&bounded_key),
@@ -235,7 +235,7 @@ fn get_module_helper_works() {
         ));
 
         // Now module should exist
-        let bounded_cid: BoundedVec<u8, MaxCidLength> = cid.try_into().unwrap();
+        let bounded_cid: BoundedVec<u8, MaxStorageReferenceLength> = cid.try_into().unwrap();
         assert_eq!(ModuleRegistry::get_module(&key), Some(bounded_cid));
     });
 }

@@ -159,6 +159,7 @@ impl pallet_sudo::Config for Runtime {
 
 /// Configure the Modules pallet for real blockchain transactions.
 impl pallet_modules::Config for Runtime {
+    type Currency = Balances;
     type WeightInfo = pallet_modules::weights::SubstrateWeight<Runtime>;
     /// Maximum length for public keys
     type MaxKeyLength = ConstU32<64>;

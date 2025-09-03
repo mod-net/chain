@@ -18,6 +18,7 @@ scale-info = { features = ["derive"], workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support.workspace = true
 frame-system.workspace = true
+pallet-balances.workspace = true
 sp-std = { default-features = false, workspace = true }
 
 [dev-dependencies]
