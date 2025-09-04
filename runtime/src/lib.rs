@@ -227,4 +227,7 @@ mod runtime {
 
     #[runtime::pallet_index(7)]
     pub type Modules = pallet_modules;
+
+    #[runtime::pallet_index(8)]
+    pub type Bridge = pallet_bridge;
 }

@@ -8,6 +8,7 @@ edition = "2021"
 [workspace]
 members = [
     "node",
+    "pallets/bridge",
     "pallets/modules",
     "runtime",
 ]
@@ -15,7 +16,9 @@ resolver = "2"
 
 [workspace.dependencies]
 modnet-runtime = { path = "./runtime", default-features = false }
+pallet-bridge = { path = "./pallets/bridge", default-features = false }
 pallet-modules = { path = "./pallets/modules", default-features = false }
+pallet-utility = { version = "41.0.0", default-features = false }
 clap = { version = "4.5.13" }
 frame-benchmarking-cli = { version = "49.1.0", default-features = false }
 frame-metadata-hash-extension = { version = "0.9.0", default-features = false }
