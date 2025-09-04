@@ -36,6 +36,7 @@ use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{ConstFeeMultiplier, FungibleAdapter, Multiplier};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::{traits::One, Perbill};
+use frame_support::traits::OriginTrait;
 use sp_version::RuntimeVersion;
 
 // Local module imports
@@ -160,4 +161,11 @@ impl pallet_sudo::Config for Runtime {
 /// Configure the pallet-template in pallets/template.
 impl pallet_template::Config for Runtime {
     type WeightInfo = pallet_template::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_utility::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type PalletsOrigin = <RuntimeOrigin as OriginTrait>::PalletsOrigin;
+    type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
 }
