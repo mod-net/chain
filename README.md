@@ -1,10 +1,10 @@
-# ModNet Substrate Node Template
+# ModNet Substrate Node
 
-![Rust CI](https://github.com/Bakobiibizo/substrate-chain-template/actions/workflows/rust.yml/badge.svg)
-![Nix CI](https://github.com/Bakobiibizo/substrate-chain-template/actions/workflows/nix.yml/badge.svg)
-![Docker](https://github.com/Bakobiibizo/substrate-chain-template/actions/workflows/docker.yml/badge.svg)
+![Rust CI](https://github.com/mod-net/chain/actions/workflows/rust.yml/badge.svg)
+![Nix CI](https://github.com/mod-net/chain/actions/workflows/nix.yml/badge.svg)
+![Docker](https://github.com/mod-net/chain/actions/workflows/docker.yml/badge.svg)
 
-Rust-only template for a Substrate node with single-source Nix, GitHub Actions (Rust, Nix, Docker), and GHCR publishing.
+Substrate node with single-source Nix, GitHub Actions (Rust, Nix, Docker), and GHCR publishing.
 
 ## Dev Quickstart
 

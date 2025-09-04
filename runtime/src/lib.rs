@@ -225,10 +225,6 @@ mod runtime {
     #[runtime::pallet_index(6)]
     pub type Sudo = pallet_sudo;
 
-    // Include the custom logic from the pallet-template in the runtime.
     #[runtime::pallet_index(7)]
-    pub type Template = pallet_template;
-
-    #[runtime::pallet_index(8)]
-    pub type Utility = pallet_utility;
+    pub type Modules = pallet_modules;
 }
