@@ -81,7 +81,9 @@ parameter_types! {
     pub const DefaultMaxModuleTake: Percent = Percent::from_percent(5);
     pub const MaxModuleNameLength: u32 = 78;
     pub const MaxStorageReferenceLength: u32 = 128;
-    pub const DefaultModuleCollateral: u128 = 5_000_000;
+    pub const MaxURLReferenceLength: u32 = 128;
+    pub const DefaultModuleCollateral: u128 = 5_000_000_000;
+    pub const DefaultReplicantCollateral: u128 = 5_000_000_000;
 }
 
 impl pallet_modules::Config for Test {
@@ -93,7 +95,9 @@ impl pallet_modules::Config for Test {
     type DefaultMaxModuleTake = DefaultMaxModuleTake;
     type MaxModuleNameLength = MaxModuleNameLength;
     type MaxStorageReferenceLength = MaxStorageReferenceLength;
+    type MaxURLReferenceLength = MaxURLReferenceLength;
     type DefaultModuleCollateral = DefaultModuleCollateral;
+    type DefaultReplicantCollateral = DefaultReplicantCollateral;
 }
 
 // Build genesis storage according to the mock runtime.

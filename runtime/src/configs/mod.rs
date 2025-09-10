@@ -178,6 +178,10 @@ impl pallet_modules::Config for Runtime {
     type MaxModuleNameLength = ConstU32<78>;
     /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
     type MaxStorageReferenceLength = ConstU32<64>;
+    /// Maximum length for URLs
+    type MaxURLReferenceLength = ConstU32<128>;
     /// Default Module Registration Cost
-    type DefaultModuleCollateral = ConstU128<5_000_000>;
+    type DefaultModuleCollateral = ConstU128<5_000_000_000>;
+    /// Default Replicant Registration Cost
+    type DefaultReplicantCollateral = ConstU128<5_000_000_000>;
 }

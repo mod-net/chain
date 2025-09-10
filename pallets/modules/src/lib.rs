@@ -6,6 +6,7 @@
 
 mod ext;
 pub mod module;
+pub mod replicant;
 pub use pallet::*;
 
 #[cfg(test)]
@@ -30,7 +31,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub mod pallet {
     use super::*;
     use frame_support::{
-        pallet_prelude::*, sp_runtime::Percent, traits::ConstU64
+        dispatch::DispatchResult, pallet_prelude::*, sp_runtime::Percent, traits::ConstU64
     };
     use frame_system::{ensure_signed, pallet_prelude::*};
     extern crate alloc;
@@ -65,9 +66,14 @@ pub mod pallet {
         /// Maximum length for Storage Reference data (in bytes), e.g. IPFS CID, S3 URL, etc.
         #[pallet::constant]
         type MaxStorageReferenceLength: Get<u32>;
+        /// Maximum length for a URL
+        #[pallet::constant]
+        type MaxURLReferenceLength: Get<u32>;
         /// Default Module Registration Cost
         #[pallet::constant]
         type DefaultModuleCollateral: Get<u128>;
+        #[pallet::constant]
+        type DefaultReplicantCollateral: Get<u128>;
     }
 
     #[pallet::storage]
@@ -87,11 +93,19 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
+    pub type ReplicantCollateral<T: Config> = StorageValue<
+        _,
+        BalanceOf<T>,
+        ValueQuery,
+        T::DefaultReplicantCollateral
+    >;
+
+    #[pallet::storage]
     pub type Modules<T: Config> = StorageMap<
         _,
         Identity,
         u64,
-        crate::module::Module<T>
+        module::Module<T>
     >;
 
     #[pallet::storage]
@@ -100,6 +114,16 @@ pub mod pallet {
         u64,
         ValueQuery,
         ConstU64<0>,
+    >;
+
+    #[pallet::storage]
+    pub type Replicants<T: Config> = StorageDoubleMap<
+        _,
+        Identity,
+        u64,
+        Identity,
+        AccountIdOf<T>,
+        replicant::Replicant<T>
     >;
 
     // /// Storage map for module registry.
@@ -153,6 +177,31 @@ pub mod pallet {
             /// The ID of the module
             id: u64,
         },
+        /// A replicant was successfully registered
+        ReplicantRegistered {
+            /// The account who registered the replicant
+            who: T::AccountId,
+            /// The module associated with the replicant
+            module: replicant::ModuleInfo<T>,
+            /// The given URL of the replicant
+            url: URLReference<T>,
+            /// Collateral
+            collateral: BalanceOf<T>,
+        },
+        ReplicantUpdated {
+            /// The account who updated the replicant
+            who: T::AccountId,
+            /// The module associated with the replicant
+            module: replicant::ModuleInfo<T>,
+            /// The given URL of the replicant
+            url: URLReference<T>,
+        },
+        ReplicantRemoved {
+            /// The account who removed the replicant
+            who: T::AccountId,
+            /// The module associated with the replicant
+            module: replicant::ModuleInfo<T>,
+        }
     }
 
     /// Errors that can be returned by this pallet.
@@ -178,6 +227,10 @@ pub mod pallet {
         ModuleNotFound,
         /// The module is not owned by the caller
         ModuleOwnership,
+        /// The replicant registration already exists
+        ReplicantExists,
+        /// The replicant does not exist in the registry
+        ReplicantNotFound,
     }
 
     /// Dispatchable functions for the module registry pallet.
@@ -216,6 +269,38 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             module::update::<T>(who, id, name, data, take)
+        }
+
+        #[pallet::call_index(3)]
+        #[pallet::weight({0})]
+        pub fn register_replicant(
+            origin: OriginFor<T>,
+            module: replicant::ModuleInfo<T>,
+            url: URLReference<T>,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            replicant::register::<T>(who, module, url)
+        }
+
+        #[pallet::call_index(4)]
+        #[pallet::weight({0})]
+        pub fn remove_replicant(
+            origin: OriginFor<T>,
+            module: replicant::ModuleInfo<T>,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            replicant::remove::<T>(who, module)
+        }
+
+        #[pallet::call_index(5)]
+        #[pallet::weight({0})]
+        pub fn update_replicant(
+            origin: OriginFor<T>,
+            module: replicant::ModuleInfo<T>,
+            url: URLReference<T>,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            replicant::update::<T>(who, module, url)
         }
     }
 }
