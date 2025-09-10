@@ -158,7 +158,7 @@ pub mod pallet {
     /// Errors that can be returned by this pallet.
     #[pallet::error]
     pub enum Error<T> {
-        /// Something went wrong that shouldn't have gone wrong
+        /// Something went wrong that shouldn't have ever gone wrong
         InternalError,
         /// Module Name is not UTF8
         NameNotUTF8,
@@ -178,20 +178,6 @@ pub mod pallet {
         ModuleNotFound,
         /// The module is not owned by the caller
         ModuleOwnership,
-        /// The public key format is invalid.
-        InvalidKeyFormat,
-        /// The IPFS CID format is invalid.
-        InvalidCidFormat,
-        /// The public key is too long.
-        KeyTooLong,
-        /// The IPFS CID is too long.
-        CidTooLong,
-        /// The public key is empty.
-        EmptyKey,
-        /// The IPFS CID is empty.
-        EmptyCid,
-        /// The module already exists in the registry.
-        ModuleAlreadyExists,
     }
 
     /// Dispatchable functions for the module registry pallet.
@@ -225,7 +211,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             id: u64,
             name: Option<module::ModuleName<T>>,
-            data: Option<StorageReference<T>>,
+            data: StorageReference<T>,
             take: Option<Percent>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;

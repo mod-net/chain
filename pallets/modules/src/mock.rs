@@ -75,7 +75,8 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-    pub const MaxModules: u64 = u64::MAX;
+    // Keep small to test MaxModulesReached edge case easily.
+    pub const MaxModules: u64 = 3;
     pub const MaxModuleReplicants: u16 = u16::MAX;
     pub const DefaultMaxModuleTake: Percent = Percent::from_percent(5);
     pub const MaxModuleNameLength: u32 = 78;
@@ -97,8 +98,23 @@ impl pallet_modules::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    frame_system::GenesisConfig::<Test>::default()
+    let mut t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
-        .unwrap()
-        .into()
+        .unwrap();
+
+    // Endow some accounts with ample balance for reservation tests.
+    pallet_balances::GenesisConfig::<Test> {
+        balances: vec![
+            (1, 10_000_000_000_000),
+            (2, 10_000_000_000_000),
+            (3, 10_000_000_000_000),
+        ],
+        dev_accounts: Default::default(),
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext.execute_with(|| System::set_block_number(1));
+    ext
 }

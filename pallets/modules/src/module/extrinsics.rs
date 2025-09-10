@@ -47,7 +47,7 @@ pub fn register<T: crate::Config>(
         },
     );
 
-    crate::NextModule::<T>::mutate(|v| v.saturating_add(1));
+    crate::NextModule::<T>::mutate(|v| *v = v.saturating_add(1));
 
     crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleRegistered {
         who: origin,
@@ -86,7 +86,7 @@ pub fn update<T: crate::Config>(
     origin: AccountIdOf<T>,
     id: u64,
     name: Option<ModuleName<T>>,
-    data: Option<StorageReference<T>>,
+    data: StorageReference<T>,
     take: Option<Percent>,
 ) -> DispatchResult {
     crate::Modules::<T>::try_mutate(&id, |module_query| -> DispatchResult {
@@ -102,7 +102,7 @@ pub fn update<T: crate::Config>(
                     .expect("Blocks will not exceed u64 maximum.");
 
                 let new_name = name.unwrap_or(module.name.clone());
-                let new_data = data.unwrap_or(module.data.clone());
+                let new_data = data.or(module.data.clone());
                 let new_take = take.unwrap_or(module.take);
 
                 let max_take = crate::MaxModuleTake::<T>::get();
