@@ -30,10 +30,9 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub mod pallet {
     use super::*;
     use frame_support::{
-        pallet_prelude::*, sp_runtime::Percent
+        pallet_prelude::*, sp_runtime::Percent, traits::ConstU64
     };
     use frame_system::{ensure_signed, pallet_prelude::*};
-    use sp_core::ConstU64;
     extern crate alloc;
 
     #[pallet::pallet]
@@ -59,7 +58,7 @@ pub mod pallet {
         type MaxModuleReplicants: Get<u16>;
         /// Maximum Take Percentage a Module Owner can set
         #[pallet::constant]
-        type MaxModuleTake: Get<Percent>;
+        type DefaultMaxModuleTake: Get<Percent>;
         /// Maximum length for Module Name String
         #[pallet::constant]
         type MaxModuleNameLength: Get<u32>;
@@ -70,6 +69,14 @@ pub mod pallet {
         #[pallet::constant]
         type DefaultModuleCollateral: Get<u128>;
     }
+
+    #[pallet::storage]
+    pub type MaxModuleTake<T: Config> = StorageValue<
+        _,
+        Percent,
+        ValueQuery,
+        T::DefaultMaxModuleTake
+    >;
 
     #[pallet::storage]
     pub type ModuleCollateral<T: Config> = StorageValue<
@@ -119,27 +126,33 @@ pub mod pallet {
             id: u64,
             /// Name of the module
             name: module::ModuleName<T>,
+            /// Data reference of the module
+            data: StorageReference<T>,
             /// Collateral
             collateral: BalanceOf<T>,
             /// Take Percentage
             take: Percent,
         },
-        // /// A module was successfully updated.
-        // ModuleUpdated {
-        //     /// The public key used as identifier.
-        //     key: BoundedVec<u8, T::MaxKeyLength>,
-        //     /// The new IPFS CID of the module metadata.
-        //     cid: BoundedVec<u8, T::MaxStorageReferenceLength>,
-        //     /// The account who updated the module.
-        //     who: T::AccountId,
-        // },
-        // /// A module was successfully removed.
-        // ModuleRemoved {
-        //     /// The public key used as identifier.
-        //     key: BoundedVec<u8, T::MaxKeyLength>,
-        //     /// The account who removed the module.
-        //     who: T::AccountId,
-        // },
+        /// A module was successfully updated.
+        ModuleUpdated {
+            /// The account who updated the module.
+            who: T::AccountId,
+            /// The ID of the module
+            id: u64,
+            /// Name of the module (potentially changed)
+            name: module::ModuleName<T>,
+            /// Data reference of the module (potentially changed)
+            data: StorageReference<T>,
+            /// Take of the module (potentially changed)
+            take: Percent,
+        },
+        /// A module was successfully removed.
+        ModuleRemoved {
+            /// The account who removed the module.
+            who: T::AccountId,
+            /// The ID of the module
+            id: u64,
+        },
     }
 
     /// Errors that can be returned by this pallet.
@@ -159,8 +172,12 @@ pub mod pallet {
         NameTaken,
         /// Max Modules Reached
         MaxModulesReached,
+        /// Maximum Take Exceeded
+        MaxTakeExceeded,
         /// The module does not exist in the registry.
         ModuleNotFound,
+        /// The module is not owned by the caller
+        ModuleOwnership,
         /// The public key format is invalid.
         InvalidKeyFormat,
         /// The IPFS CID format is invalid.
@@ -190,6 +207,29 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             module::register::<T>(who, name, data, take)
+        }
+
+        #[pallet::call_index(1)]
+        #[pallet::weight({0})]
+        pub fn remove_module(
+            origin: OriginFor<T>,
+            id: u64,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            module::remove::<T>(who, id)
+        }
+
+        #[pallet::call_index(2)]
+        #[pallet::weight({0})]
+        pub fn update_module(
+            origin: OriginFor<T>,
+            id: u64,
+            name: Option<module::ModuleName<T>>,
+            data: Option<StorageReference<T>>,
+            take: Option<Percent>,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            module::update::<T>(who, id, name, data, take)
         }
     }
 }

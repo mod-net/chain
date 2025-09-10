@@ -158,9 +158,9 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MaxModules: u16 = u16::MAX;
+    pub const MaxModules: u64 = u64::MAX;
     pub const MaxModuleReplicants: u16 = u16::MAX;
-    pub const MaxModuleTake: Percent = Percent::from_percent(5);
+    pub const DefaultMaxModuleTake: Percent = Percent::from_percent(5);
 }
 
 /// Configure the Modules pallet for real blockchain transactions.
@@ -173,7 +173,7 @@ impl pallet_modules::Config for Runtime {
     /// Maximum number of Replicants that can be active per Module
     type MaxModuleReplicants = MaxModuleReplicants;
     /// Maximum take percentage a Module Owner can set
-    type MaxModuleTake = MaxModuleTake;
+    type DefaultMaxModuleTake = DefaultMaxModuleTake;
     /// Maximum length for Module Names (basing 78 characters on recommendations from RFC 5322)
     type MaxModuleNameLength = ConstU32<78>;
     /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
