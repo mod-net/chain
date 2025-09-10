@@ -75,27 +75,24 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-
-    pub const MaxKeyLength: u32 = 128;
-
-    pub const MaxUserModules: u16 = u16::MAX;
+    pub const MaxModules: u16 = u16::MAX;
     pub const MaxModuleReplicants: u16 = u16::MAX;
     pub const MaxModuleTake: Percent = Percent::from_percent(5);
-    pub const MaxModuleTitleLength: u32 = 78;
+    pub const MaxModuleNameLength: u32 = 78;
     pub const MaxStorageReferenceLength: u32 = 128;
+    pub const DefaultModuleCollateral: u128 = 5_000_000;
 }
 
 impl pallet_modules::Config for Test {
     type Currency = Balances;
     type WeightInfo = ();
 
-    type MaxKeyLength = MaxKeyLength;
-
-    type MaxUserModules = MaxUserModules;
+    type MaxModules = MaxModules;
     type MaxModuleReplicants = MaxModuleReplicants;
     type MaxModuleTake = MaxModuleTake;
-    type MaxModuleTitleLength = MaxModuleTitleLength;
+    type MaxModuleNameLength = MaxModuleNameLength;
     type MaxStorageReferenceLength = MaxStorageReferenceLength;
+    type DefaultModuleCollateral = DefaultModuleCollateral;
 }
 
 // Build genesis storage according to the mock runtime.

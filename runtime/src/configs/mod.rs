@@ -158,7 +158,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MaxUserModules: u16 = u16::MAX;
+    pub const MaxModules: u16 = u16::MAX;
     pub const MaxModuleReplicants: u16 = u16::MAX;
     pub const MaxModuleTake: Percent = Percent::from_percent(5);
 }
@@ -168,17 +168,16 @@ impl pallet_modules::Config for Runtime {
     type Currency = Balances;
     type WeightInfo = pallet_modules::weights::SubstrateWeight<Runtime>;
 
-    /// Maximum length for public keys
-    type MaxKeyLength = ConstU32<64>;
-
     /// Maximum number of Modules a single User (Account) can register
-    type MaxUserModules = MaxUserModules;
+    type MaxModules = MaxModules;
     /// Maximum number of Replicants that can be active per Module
     type MaxModuleReplicants = MaxModuleReplicants;
     /// Maximum take percentage a Module Owner can set
     type MaxModuleTake = MaxModuleTake;
-    /// Maximum length for Module Titles (basing 78 characters on recommendations from RFC 5322)
-    type MaxModuleTitleLength = ConstU32<78>;
+    /// Maximum length for Module Names (basing 78 characters on recommendations from RFC 5322)
+    type MaxModuleNameLength = ConstU32<78>;
     /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
     type MaxStorageReferenceLength = ConstU32<64>;
+    /// Default Module Registration Cost
+    type DefaultModuleCollateral = ConstU128<5_000_000>;
 }
