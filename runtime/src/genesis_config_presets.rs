@@ -54,6 +54,32 @@ fn testnet_genesis(
     })
 }
 
+/// Return the public testnet genesis config (Modnet Testnet).
+///
+/// Note: This is initially seeded with dev keyring authorities and sudo for convenience
+/// during bootstrap. For a real public testnet, generate a chainspec JSON from this preset
+/// and replace authorities and sudo with your production testnet keys and multisig address.
+pub fn modnet_testnet_config_genesis() -> Value {
+    testnet_genesis(
+        vec![
+            (
+                sp_keyring::Sr25519Keyring::Alice.public().into(),
+                sp_keyring::Ed25519Keyring::Alice.public().into(),
+            ),
+            (
+                sp_keyring::Sr25519Keyring::Bob.public().into(),
+                sp_keyring::Ed25519Keyring::Bob.public().into(),
+            ),
+        ],
+        Sr25519Keyring::iter()
+            .filter(|v| v != &Sr25519Keyring::One && v != &Sr25519Keyring::Two)
+            .map(|v| v.to_account_id())
+            .collect::<Vec<_>>(),
+        // Temporary sudo: Alice. Replace with your multisig address in the JSON chainspec.
+        Sr25519Keyring::Alice.to_account_id(),
+    )
+}
+
 /// Return the development genesis config.
 pub fn development_config_genesis() -> Value {
     testnet_genesis(
@@ -97,6 +123,8 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
     let patch = match id.as_ref() {
         sp_genesis_builder::DEV_RUNTIME_PRESET => development_config_genesis(),
         sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => local_config_genesis(),
+        // Custom Modnet public testnet preset
+        "modnet_testnet" => modnet_testnet_config_genesis(),
         _ => return None,
     };
     Some(
@@ -111,5 +139,7 @@ pub fn preset_names() -> Vec<PresetId> {
     vec![
         PresetId::from(sp_genesis_builder::DEV_RUNTIME_PRESET),
         PresetId::from(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET),
+        // Expose the Modnet public testnet preset to the builder
+        PresetId::from("modnet_testnet"),
     ]
 }

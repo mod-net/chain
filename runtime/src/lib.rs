@@ -226,5 +226,11 @@ mod runtime {
     pub type Sudo = pallet_sudo;
 
     #[runtime::pallet_index(7)]
+    pub type Utility = pallet_utility;
+
+    #[runtime::pallet_index(8)]
+    pub type Multisig = pallet_multisig;
+
+    #[runtime::pallet_index(9)]
     pub type Modules = pallet_modules;
 }

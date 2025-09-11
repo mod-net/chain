@@ -1,3 +1,9 @@
+.venv
+.env
+!.env.example
+
+
+
 # Rust
 target/
 **/target/
