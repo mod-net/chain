@@ -73,21 +73,6 @@ def ensure_keys_dir() -> None:
     os.makedirs(DEFAULT_KEYS_DIR, exist_ok=True)
 
 
-def list_key_files() -> list[str]:
-    """Return a sorted list of key file paths in DEFAULT_KEYS_DIR (most recent first)."""
-    ensure_keys_dir()
-    try:
-        entries = [
-            os.path.join(DEFAULT_KEYS_DIR, f)
-            for f in os.listdir(DEFAULT_KEYS_DIR)
-            if f.endswith(".json") and os.path.isfile(os.path.join(DEFAULT_KEYS_DIR, f))
-        ]
-    except FileNotFoundError:
-        entries = []
-    entries.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    return entries
-
-
 def resolve_key_path(path_or_name: str) -> str:
     """Resolve a key file path.
 
@@ -456,45 +441,6 @@ def cmd_key_load(args):
     _print_json(key_obj.to_json(include_secret=args.with_secret))
 
 
-def cmd_list(args):
-    files = list_key_files()
-    if not files:
-        console.print("[yellow]No key files found in[/yellow] " + DEFAULT_KEYS_DIR)
-        return
-    rows = [
-        {
-            "index": i,
-            "file": os.path.basename(p),
-            "modified": datetime.fromtimestamp(os.path.getmtime(p), UTC).isoformat(),
-        }
-        for i, p in enumerate(files)
-    ]
-    _print_json({"keys_dir": DEFAULT_KEYS_DIR, "items": rows})
-
-
-def cmd_select(args):
-    files = list_key_files()
-    if not files:
-        console.print("[yellow]No key files found in[/yellow] " + DEFAULT_KEYS_DIR)
-        return
-    if args.index is not None:
-        idx = args.index
-        if idx < 0 or idx >= len(files):
-            raise ValueError(f"Index out of range (0..{len(files)-1})")
-        chosen = files[idx]
-    else:
-        console.print(f"[cyan]Select a key file from[/cyan] {DEFAULT_KEYS_DIR}:")
-        for i, p in enumerate(files):
-            console.print(f"  [{i}] {os.path.basename(p)}")
-        while True:
-            s = input("Enter index: ").strip()
-            if s.isdigit():
-                idx = int(s)
-                if 0 <= idx < len(files):
-                    chosen = files[idx]
-                    break
-            console.print("[red]Invalid selection, try again.[/red]")
-    _print_json({"selected": chosen, "filename": os.path.basename(chosen)})
 
 
 
@@ -644,12 +590,6 @@ def main():
     p_load2.add_argument("--with-secret", action="store_true", help="Include secret in output")
     p_load2.set_defaults(func=cmd_key_load)
 
-    p_list = sub.add_parser("list", help="List key files in ~/.modnet/keys")
-    p_list.set_defaults(func=cmd_list)
-
-    p_select = sub.add_parser("select", help="Interactively select a key file from ~/.modnet/keys")
-    p_select.add_argument("--index", type=int, help="Preselect by index (non-interactive)")
-    p_select.set_defaults(func=cmd_select)
 
     if len(sys.argv) == 1:
         p.print_help()
