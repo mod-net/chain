@@ -617,12 +617,32 @@ def main():
     p_save.add_argument("--prompt", action="store_true", help="Prompt for password (recommended)")
     p_save.set_defaults(func=cmd_key_save)
 
+    # Short alias: save
+    p_save2 = sub.add_parser("save", help="Alias for key-save")
+    p_save2.add_argument("--scheme", choices=["sr25519", "ed25519"], required=True)
+    p_save2.add_argument("--network", default="substrate")
+    p_save2.add_argument("--phrase", help="Secret phrase (mnemonic)")
+    p_save2.add_argument("--public", help="0x<hex public key>")
+    p_save2.add_argument("--out", help="Output file path (default: ~/.modnet/keys/<timestamp>-<scheme>.json)")
+    p_save2.add_argument("--name", help="Filename to use under ~/.modnet/keys (e.g., aura-sr25519.json)")
+    p_save2.add_argument("--password", help="Password (omit to be prompted)")
+    p_save2.add_argument("--prompt", action="store_true", help="Prompt for password (recommended)")
+    p_save2.set_defaults(func=cmd_key_save)
+
     p_load = sub.add_parser("key-load", help="Decrypt a saved key file and print fields")
     p_load.add_argument("--file", required=True, help="Path or filename in ~/.modnet/keys")
     p_load.add_argument("--password", help="Password (omit to be prompted)")
     p_load.add_argument("--prompt", action="store_true", help="Prompt for password")
     p_load.add_argument("--with-secret", action="store_true", help="Include secret in output")
     p_load.set_defaults(func=cmd_key_load)
+
+    # Short alias: load
+    p_load2 = sub.add_parser("load", help="Alias for key-load")
+    p_load2.add_argument("--file", required=True, help="Path or filename in ~/.modnet/keys")
+    p_load2.add_argument("--password", help="Password (omit to be prompted)")
+    p_load2.add_argument("--prompt", action="store_true", help="Prompt for password")
+    p_load2.add_argument("--with-secret", action="store_true", help="Include secret in output")
+    p_load2.set_defaults(func=cmd_key_load)
 
     p_list = sub.add_parser("list", help="List key files in ~/.modnet/keys")
     p_list.set_defaults(func=cmd_list)
