@@ -72,6 +72,36 @@ def ensure_keys_dir() -> None:
     """Create the default keys directory if it doesn't already exist."""
     os.makedirs(DEFAULT_KEYS_DIR, exist_ok=True)
 
+
+def list_key_files() -> list[str]:
+    """Return a sorted list of key file paths in DEFAULT_KEYS_DIR (most recent first)."""
+    ensure_keys_dir()
+    try:
+        entries = [
+            os.path.join(DEFAULT_KEYS_DIR, f)
+            for f in os.listdir(DEFAULT_KEYS_DIR)
+            if f.endswith(".json") and os.path.isfile(os.path.join(DEFAULT_KEYS_DIR, f))
+        ]
+    except FileNotFoundError:
+        entries = []
+    entries.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    return entries
+
+
+def resolve_key_path(path_or_name: str) -> str:
+    """Resolve a key file path.
+
+    If `path_or_name` is an absolute path or contains a path separator, expand and return as-is.
+    Otherwise, look for it under DEFAULT_KEYS_DIR, appending .json if needed.
+    """
+    p = os.path.expanduser(path_or_name)
+    if os.path.isabs(p) or os.sep in path_or_name:
+        return p
+    ensure_keys_dir()
+    if not path_or_name.endswith(".json"):
+        path_or_name += ".json"
+    return os.path.join(DEFAULT_KEYS_DIR, path_or_name)
+
 def _require_crypto():
     """Raise if crypto dependencies are missing."""
     if not _CRYPTO_OK:
@@ -407,8 +437,13 @@ def cmd_key_save(args):
         out_path = os.path.expanduser(args.out)
     else:
         ensure_keys_dir()
-        timestamp_str = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-        filename = f"{timestamp_str}-{args.scheme}.json"
+        if args.name:
+            filename = args.name
+            if not filename.endswith(".json"):
+                filename += ".json"
+        else:
+            timestamp_str = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            filename = f"{timestamp_str}-{args.scheme}.json"
         out_path = os.path.join(DEFAULT_KEYS_DIR, filename)
     key_obj.save(out_path, None if args.prompt else args.password)
     console.print(f"[green]Saved encrypted key to[/green] {out_path}")
@@ -416,8 +451,50 @@ def cmd_key_save(args):
 
 def cmd_key_load(args):
     """Handle `key-load` subcommand: decrypt a key file and print fields."""
-    key_obj = Key.load(args.file, None if args.prompt else args.password)
+    path = resolve_key_path(args.file)
+    key_obj = Key.load(path, None if args.prompt else args.password)
     _print_json(key_obj.to_json(include_secret=args.with_secret))
+
+
+def cmd_list(args):
+    files = list_key_files()
+    if not files:
+        console.print("[yellow]No key files found in[/yellow] " + DEFAULT_KEYS_DIR)
+        return
+    rows = [
+        {
+            "index": i,
+            "file": os.path.basename(p),
+            "modified": datetime.fromtimestamp(os.path.getmtime(p), UTC).isoformat(),
+        }
+        for i, p in enumerate(files)
+    ]
+    _print_json({"keys_dir": DEFAULT_KEYS_DIR, "items": rows})
+
+
+def cmd_select(args):
+    files = list_key_files()
+    if not files:
+        console.print("[yellow]No key files found in[/yellow] " + DEFAULT_KEYS_DIR)
+        return
+    if args.index is not None:
+        idx = args.index
+        if idx < 0 or idx >= len(files):
+            raise ValueError(f"Index out of range (0..{len(files)-1})")
+        chosen = files[idx]
+    else:
+        console.print(f"[cyan]Select a key file from[/cyan] {DEFAULT_KEYS_DIR}:")
+        for i, p in enumerate(files):
+            console.print(f"  [{i}] {os.path.basename(p)}")
+        while True:
+            s = input("Enter index: ").strip()
+            if s.isdigit():
+                idx = int(s)
+                if 0 <= idx < len(files):
+                    chosen = files[idx]
+                    break
+            console.print("[red]Invalid selection, try again.[/red]")
+    _print_json({"selected": chosen, "filename": os.path.basename(chosen)})
 
 
 
@@ -535,16 +612,24 @@ def main():
     p_save.add_argument("--phrase", help="Secret phrase (mnemonic)")
     p_save.add_argument("--public", help="0x<hex public key>")
     p_save.add_argument("--out", help="Output file path (default: ~/.modnet/keys/<timestamp>-<scheme>.json)")
+    p_save.add_argument("--name", help="Filename to use under ~/.modnet/keys (e.g., aura-sr25519.json)")
     p_save.add_argument("--password", help="Password (omit to be prompted)")
     p_save.add_argument("--prompt", action="store_true", help="Prompt for password (recommended)")
     p_save.set_defaults(func=cmd_key_save)
 
     p_load = sub.add_parser("key-load", help="Decrypt a saved key file and print fields")
-    p_load.add_argument("--file", required=True)
+    p_load.add_argument("--file", required=True, help="Path or filename in ~/.modnet/keys")
     p_load.add_argument("--password", help="Password (omit to be prompted)")
     p_load.add_argument("--prompt", action="store_true", help="Prompt for password")
     p_load.add_argument("--with-secret", action="store_true", help="Include secret in output")
     p_load.set_defaults(func=cmd_key_load)
+
+    p_list = sub.add_parser("list", help="List key files in ~/.modnet/keys")
+    p_list.set_defaults(func=cmd_list)
+
+    p_select = sub.add_parser("select", help="Interactively select a key file from ~/.modnet/keys")
+    p_select.add_argument("--index", type=int, help="Preselect by index (non-interactive)")
+    p_select.set_defaults(func=cmd_select)
 
     if len(sys.argv) == 1:
         p.print_help()
