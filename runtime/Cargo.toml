@@ -25,11 +25,12 @@ frame-try-runtime = { optional = true, workspace = true }
 pallet-aura.workspace = true
 pallet-balances.workspace = true
 pallet-grandpa.workspace = true
+pallet-utility.workspace = true
+pallet-multisig.workspace = true
 pallet-sudo.workspace = true
 pallet-modules.workspace = true
 pallet-timestamp.workspace = true
 pallet-bridge.workspace = true
-pallet-utility.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
 pallet-transaction-payment.workspace = true
 scale-info = { features = ["derive", "serde"], workspace = true }
@@ -67,6 +68,8 @@ std = [
 	"pallet-aura/std",
 	"pallet-balances/std",
 	"pallet-grandpa/std",
+	"pallet-utility/std",
+	"pallet-multisig/std",
 	"pallet-sudo/std",
 	"pallet-modules/std",
 	"pallet-timestamp/std",

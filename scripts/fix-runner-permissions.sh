@@ -82,3 +82,4 @@ log_info ""
 log_info "Or install it as a service with:"
 log_info "cd $RUNNER_DIR && sudo ./svc.sh install"
 log_info "cd $RUNNER_DIR && sudo ./svc.sh start"
+
