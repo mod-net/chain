@@ -12,7 +12,9 @@ NODE_PATH="$(pwd)/target/release/modnet-node"
   --node-key 40ffa204f07664248b1d10d5a57a28877206fb82ac356f9273824dae81375e81 \
   --listen-addr /ip4/0.0.0.0/tcp/30333 \
   --rpc-cors all \
-  --rpc-port 9944 \
+  --rpc-port 9933 \
+#  --rpc-external \
+#  --rpc-methods Unsafe \
   --rpc-methods Safe \
   --force-authoring \
   --base-path ~/.modnet/data
