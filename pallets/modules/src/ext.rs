@@ -9,3 +9,6 @@ pub(super) type Block = u64;
 
 pub(super) type StorageReference<T> =
   Option<frame_support::sp_runtime::BoundedVec<u8, <T as crate::Config>::MaxStorageReferenceLength>>;
+
+pub(super) type URLReference<T> =
+  Option<frame_support::sp_runtime::BoundedVec<u8, <T as crate::Config>::MaxURLLength>>;

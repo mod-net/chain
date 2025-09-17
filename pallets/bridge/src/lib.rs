@@ -12,7 +12,6 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type WeightInfo: WeightInfo;
     }
 
@@ -77,7 +76,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
-        #[pallet::weight(10_000)]
+        #[pallet::weight({10_000})]
         pub fn claim(origin: OriginFor<T>, _proof: Vec<u8>, _leaf: Vec<u8>, t_days: u32) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(!Paused::<T>::get(), Error::<T>::BridgePaused);
@@ -93,7 +92,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(1)]
-        #[pallet::weight(10_000)]
+        #[pallet::weight({10_000})]
         pub fn set_params(origin: OriginFor<T>, params: Params) -> DispatchResult {
             ensure_root(origin)?;
             BridgeParams::<T>::put(params);
@@ -102,7 +101,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(2)]
-        #[pallet::weight(10_000)]
+        #[pallet::weight({10_000})]
         pub fn pause(origin: OriginFor<T>) -> DispatchResult {
             ensure_root(origin)?;
             Paused::<T>::put(true);
@@ -111,7 +110,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(3)]
-        #[pallet::weight(10_000)]
+        #[pallet::weight({10_000})]
         pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
             ensure_root(origin)?;
             Paused::<T>::put(false);
