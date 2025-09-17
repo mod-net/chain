@@ -1,0 +1,34 @@
+[package]
+name = "pallet-bridge"
+description = "One-time Merkle-claim bridge pallet for COM -> MOD migration"
+version = "0.1.0"
+license = "MIT-0"
+edition = "2021"
+publish = false
+
+[dependencies]
+codec = { workspace = true, package = "parity-scale-codec", default-features = false, features = ["derive"] }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+sp-core = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+sp-runtime = { workspace = true, features = ["std"] }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "frame-support/std",
+    "frame-system/std",
+]
+runtime-benchmarks = ["frame-support/runtime-benchmarks"]
+try-runtime = ["frame-support/try-runtime"]
