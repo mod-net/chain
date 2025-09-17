@@ -62,7 +62,6 @@ parameter_types! {
 
 // Bridge pallet configuration
 impl pallet_bridge::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
 }
 
@@ -215,7 +214,7 @@ impl pallet_modules::Config for Runtime {
     /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
     type MaxStorageReferenceLength = ConstU32<64>;
     /// Maximum length for URLs
-    type MaxURLReferenceLength = ConstU32<128>;
+    type MaxURLLength = ConstU32<128>;
     /// Default Module Registration Cost
     type DefaultModuleCollateral = ConstU128<5_000_000_000>;
 }

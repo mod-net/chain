@@ -67,7 +67,7 @@ pub mod pallet {
         type MaxStorageReferenceLength: Get<u32>;
         /// Maximum length for a URL
         #[pallet::constant]
-        type MaxURLReferenceLength: Get<u32>;
+        type MaxURLLength: Get<u32>;
         /// Default Module Registration Cost
         #[pallet::constant]
         type DefaultModuleCollateral: Get<u128>;
@@ -119,6 +119,8 @@ pub mod pallet {
             name: module::ModuleName<T>,
             /// Data reference of the module
             data: StorageReference<T>,
+            /// URL of the module
+            url: URLReference<T>,
             /// Collateral
             collateral: BalanceOf<T>,
             /// Take Percentage
@@ -134,6 +136,8 @@ pub mod pallet {
             name: module::ModuleName<T>,
             /// Data reference of the module (potentially changed)
             data: StorageReference<T>,
+            /// URL of the module
+            url: URLReference<T>,
             /// Take of the module (potentially changed)
             take: Percent,
         },
@@ -169,10 +173,6 @@ pub mod pallet {
         ModuleNotFound,
         /// The module is not owned by the caller
         ModuleOwnership,
-        /// The replicant registration already exists
-        ReplicantExists,
-        /// The replicant does not exist in the registry
-        ReplicantNotFound,
     }
 
     /// Dispatchable functions for the module registry pallet.
@@ -184,10 +184,11 @@ pub mod pallet {
             origin: OriginFor<T>,
             name: module::ModuleName<T>,
             data: StorageReference<T>,
+            url: URLReference<T>,
             take: Option<Percent>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-            module::register::<T>(who, name, data, take)
+            module::register::<T>(who, name, data, url, take)
         }
 
         #[pallet::call_index(1)]
@@ -207,10 +208,11 @@ pub mod pallet {
             id: u64,
             name: Option<module::ModuleName<T>>,
             data: StorageReference<T>,
+            url: URLReference<T>,
             take: Option<Percent>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-            module::update::<T>(who, id, name, data, take)
+            module::update::<T>(who, id, name, data, url, take)
         }
     }
 }

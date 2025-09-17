@@ -94,7 +94,7 @@ impl pallet_modules::Config for Test {
     type DefaultMaxModuleTake = DefaultMaxModuleTake;
     type MaxModuleNameLength = MaxModuleNameLength;
     type MaxStorageReferenceLength = MaxStorageReferenceLength;
-    type MaxURLReferenceLength = MaxURLReferenceLength;
+    type MaxURLLength = MaxURLReferenceLength;
     type DefaultModuleCollateral = DefaultModuleCollateral;
 }
 

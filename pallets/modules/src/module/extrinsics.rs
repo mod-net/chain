@@ -1,5 +1,5 @@
 use super::{Module, ModuleName};
-use crate::{AccountIdOf, StorageReference};
+use crate::{AccountIdOf, StorageReference, URLReference};
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
@@ -11,6 +11,7 @@ pub fn register<T: crate::Config>(
     origin: AccountIdOf<T>,
     name: ModuleName<T>,
     data: StorageReference<T>,
+    url: URLReference<T>,
     take: Option<Percent>,
 ) -> DispatchResult {
     Module::<T>::validate_name(&name[..])?;
@@ -40,6 +41,7 @@ pub fn register<T: crate::Config>(
             id: next_module_id,
             name: name.clone(),
             data: data.clone(),
+            url: url.clone(),
             collateral,
             take,
             created_at: current_block,
@@ -54,6 +56,7 @@ pub fn register<T: crate::Config>(
         id: next_module_id,
         name,
         data,
+        url,
         collateral,
         take,
     });
@@ -87,6 +90,7 @@ pub fn update<T: crate::Config>(
     id: u64,
     name: Option<ModuleName<T>>,
     data: StorageReference<T>,
+    url: URLReference<T>,
     take: Option<Percent>,
 ) -> DispatchResult {
     crate::Modules::<T>::try_mutate(&id, |module_query| -> DispatchResult {
@@ -103,6 +107,7 @@ pub fn update<T: crate::Config>(
 
                 let new_name = name.unwrap_or(module.name.clone());
                 let new_data = data.or(module.data.clone());
+                let new_url = url.or(module.url.clone());
                 let new_take = take.unwrap_or(module.take);
 
                 let max_take = crate::MaxModuleTake::<T>::get();
@@ -110,6 +115,7 @@ pub fn update<T: crate::Config>(
 
                 module.name = new_name.clone();
                 module.data = new_data.clone();
+                module.url = new_url.clone();
                 module.take = new_take.clone();
                 module.last_updated = current_block;
 
@@ -118,6 +124,7 @@ pub fn update<T: crate::Config>(
                     id,
                     name: new_name,
                     data: new_data,
+                    url: new_url,
                     take: new_take,
                 });
 

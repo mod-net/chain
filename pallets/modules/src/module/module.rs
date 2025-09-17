@@ -1,4 +1,4 @@
-use crate::{AccountIdOf, BalanceOf, Block, StorageReference};
+use crate::{AccountIdOf, BalanceOf, Block, StorageReference, URLReference};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
     sp_runtime::{BoundedVec, Percent},
@@ -25,6 +25,7 @@ pub struct Module<T: crate::Config> {
     pub id: u64,
     pub name: ModuleName<T>,
     pub data: StorageReference<T>,
+    pub url: URLReference<T>,
     pub collateral: BalanceOf<T>,
     pub take: Percent,
     pub created_at: Block,
