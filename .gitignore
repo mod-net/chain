@@ -1,6 +1,14 @@
+.venv
+.env
+!.env.example
+
+
+
 # Rust
 target/
 **/target/
+
+**/__pycache__
 
 # Nix / direnv
 .direnv/

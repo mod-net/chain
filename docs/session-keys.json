@@ -1,0 +1,14 @@
+{
+  "aura": {
+    "scheme": "sr25519",
+    "ss58_address": "5DfaGRwfpgjzU2HcYDPXJQwAVQ6cAHiGDfeNf7YYJjCKHoBB",
+    "public_key_hex": "0x46d445772c8f4ce37a1d30d9dc5e36ec2e4bd478a5e94952634785ad2fb23a66",
+    "file": "~/.modnet/keys/treasury.json"
+  },
+  "grandpa": {
+    "scheme": "ed25519",
+    "ss58_address": "5HF6Koc628YWoAreCmaswgesyAdcVi1MyixPbNQEz4M3xpDm",
+    "public_key_hex": "0xe519413de9ecd15c7b17572902f942262bb7f3e4d2dd5a415e98b46f78afb4fa",
+    "file": "~/.modnet/keys/20250912-013443-grandpa-ed25519.json"
+  }
+}
