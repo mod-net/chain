@@ -6,7 +6,6 @@
 
 mod ext;
 pub mod module;
-pub mod replicant;
 pub use pallet::*;
 
 #[cfg(test)]
@@ -72,8 +71,6 @@ pub mod pallet {
         /// Default Module Registration Cost
         #[pallet::constant]
         type DefaultModuleCollateral: Get<u128>;
-        #[pallet::constant]
-        type DefaultReplicantCollateral: Get<u128>;
     }
 
     #[pallet::storage]
@@ -93,14 +90,6 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
-    pub type ReplicantCollateral<T: Config> = StorageValue<
-        _,
-        BalanceOf<T>,
-        ValueQuery,
-        T::DefaultReplicantCollateral
-    >;
-
-    #[pallet::storage]
     pub type Modules<T: Config> = StorageMap<
         _,
         Identity,
@@ -115,28 +104,6 @@ pub mod pallet {
         ValueQuery,
         ConstU64<0>,
     >;
-
-    #[pallet::storage]
-    pub type Replicants<T: Config> = StorageDoubleMap<
-        _,
-        Identity,
-        u64,
-        Identity,
-        AccountIdOf<T>,
-        replicant::Replicant<T>
-    >;
-
-    // /// Storage map for module registry.
-    // /// Maps public keys (Vec<u8>) to IPFS CIDs (Vec<u8>).
-    // #[pallet::storage]
-    // #[pallet::getter(fn modules)]
-    // pub type Modules<T: Config> = StorageMap<
-    //     _,
-    //     Blake2_128Concat,
-    //     BoundedVec<u8, T::MaxKeyLength>,
-    //     BoundedVec<u8, T::MaxStorageReferenceLength>,
-    //     OptionQuery,
-    // >;
 
     /// Events emitted by this pallet.
     #[pallet::event]
@@ -177,31 +144,6 @@ pub mod pallet {
             /// The ID of the module
             id: u64,
         },
-        /// A replicant was successfully registered
-        ReplicantRegistered {
-            /// The account who registered the replicant
-            who: T::AccountId,
-            /// The module associated with the replicant
-            module: replicant::ModuleInfo<T>,
-            /// The given URL of the replicant
-            url: URLReference<T>,
-            /// Collateral
-            collateral: BalanceOf<T>,
-        },
-        ReplicantUpdated {
-            /// The account who updated the replicant
-            who: T::AccountId,
-            /// The module associated with the replicant
-            module: replicant::ModuleInfo<T>,
-            /// The given URL of the replicant
-            url: URLReference<T>,
-        },
-        ReplicantRemoved {
-            /// The account who removed the replicant
-            who: T::AccountId,
-            /// The module associated with the replicant
-            module: replicant::ModuleInfo<T>,
-        }
     }
 
     /// Errors that can be returned by this pallet.
@@ -269,38 +211,6 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             module::update::<T>(who, id, name, data, take)
-        }
-
-        #[pallet::call_index(3)]
-        #[pallet::weight({0})]
-        pub fn register_replicant(
-            origin: OriginFor<T>,
-            module: replicant::ModuleInfo<T>,
-            url: URLReference<T>,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            replicant::register::<T>(who, module, url)
-        }
-
-        #[pallet::call_index(4)]
-        #[pallet::weight({0})]
-        pub fn remove_replicant(
-            origin: OriginFor<T>,
-            module: replicant::ModuleInfo<T>,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            replicant::remove::<T>(who, module)
-        }
-
-        #[pallet::call_index(5)]
-        #[pallet::weight({0})]
-        pub fn update_replicant(
-            origin: OriginFor<T>,
-            module: replicant::ModuleInfo<T>,
-            url: URLReference<T>,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            replicant::update::<T>(who, module, url)
         }
     }
 }

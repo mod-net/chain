@@ -182,6 +182,4 @@ impl pallet_modules::Config for Runtime {
     type MaxURLReferenceLength = ConstU32<128>;
     /// Default Module Registration Cost
     type DefaultModuleCollateral = ConstU128<5_000_000_000>;
-    /// Default Replicant Registration Cost
-    type DefaultReplicantCollateral = ConstU128<5_000_000_000>;
 }
