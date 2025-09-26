@@ -1,4 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "cryptography",
+#     "pydantic",
+#     "rich",
+#     "rich-argparse",
+#     "scalecodec",
+#     "substrate-interface",
+# ]
+# ///
 """
 Key utilities for Modnet:
 - Generate Aura (sr25519) and GRANDPA (ed25519) keys via `subkey`.
@@ -58,6 +69,10 @@ import os
 import base64
 from typing import Literal
 from datetime import datetime, UTC
+import unicodedata
+import sys as _sys
+import termios
+import tty
 
 try:
     from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
@@ -87,15 +102,72 @@ def resolve_key_path(path_or_name: str) -> str:
         path_or_name += ".json"
     return os.path.join(DEFAULT_KEYS_DIR, path_or_name)
 
+
+def list_key_files() -> list[str]:
+    """Return a sorted list of key file paths in DEFAULT_KEYS_DIR (most recent first)."""
+    ensure_keys_dir()
+    try:
+        entries = [
+            os.path.join(DEFAULT_KEYS_DIR, f)
+            for f in os.listdir(DEFAULT_KEYS_DIR)
+            if f.endswith(".json") and os.path.isfile(os.path.join(DEFAULT_KEYS_DIR, f))
+        ]
+    except FileNotFoundError:
+        entries = []
+    entries.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    return entries
+
 def _require_crypto():
     """Raise if crypto dependencies are missing."""
     if not _CRYPTO_OK:
         raise RuntimeError("Missing crypto deps. Install with: pip install -r scripts/requirements.txt")
 
-def _kdf_scrypt(password: str, salt: bytes, n: int = 2**14, r: int = 8, p: int = 1, length: int = 32) -> bytes:
+def _to_password_bytes(password: str | bytes) -> bytes:
+    """Convert password to bytes with Unicode normalization.
+
+    - If bytes, return as-is.
+    - If str, normalize to NFC and encode as UTF-8.
+    """
+    if isinstance(password, bytes):
+        return password
+    norm = unicodedata.normalize("NFC", password)
+    return norm.encode("utf-8")
+
+
+def _kdf_scrypt(password: str | bytes, salt: bytes, n: int = 2**14, r: int = 8, p: int = 1, length: int = 32) -> bytes:
     """Derive a symmetric key from `password` and `salt` using scrypt."""
     kdf = Scrypt(salt=salt, length=length, n=n, r=r, p=p)
-    return kdf.derive(password.encode("utf-8"))
+    return kdf.derive(_to_password_bytes(password))
+
+
+def _read_password_bytes_interactive(prompt: str) -> bytes:
+    """Read password as raw bytes from TTY without echo, independent of locale."""
+    fd = _sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        _sys.stderr.write(prompt)
+        _sys.stderr.flush()
+        tty.setraw(fd)
+        buf = bytearray()
+        while True:
+            ch = os.read(fd, 1)
+            if not ch:
+                break
+            b = ch[0]
+            if b in (10, 13):
+                _sys.stderr.write("\n")
+                _sys.stderr.flush()
+                break
+            if b == 3:
+                raise KeyboardInterrupt
+            if b in (8, 127):
+                if buf:
+                    buf.pop()
+                continue
+            buf.extend(ch)
+        return bytes(buf)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 def _aesgcm_encrypt(key: bytes, plaintext: bytes, associated_data: bytes = b"") -> dict:
@@ -158,7 +230,9 @@ class Key(BaseModel):
             network=network,
             secret_phrase=phrase,
             public_key_hex=parsed.get("public_key_hex"),
+            private_key_hex=parsed.get("secret_seed"),
             ss58_address=parsed.get("ss58_address"),
+            byte_array=ss58_to_bytes(parsed.get("ss58_address")),
             key_type=scheme,
             is_pair=True,
             created_at=datetime.now(UTC),
@@ -177,6 +251,7 @@ class Key(BaseModel):
             network=network,
             public_key_hex=public_hex,
             ss58_address=parsed.get("ss58_address"),
+            byte_array=ss58_to_bytes(parsed.get("ss58_address")),
             key_type="ss58" if parsed.get("ss58_address") else scheme,
             is_pair=False,
             created_at=datetime.now(UTC),
@@ -190,6 +265,11 @@ class Key(BaseModel):
             derived = Key.from_secret_phrase(self.secret_phrase, self.scheme, self.network)
             self.public_key_hex = derived.public_key_hex
             self.ss58_address = derived.ss58_address
+            # populate byte_array from derived ss58
+            self.byte_array = ss58_to_bytes(self.ss58_address)
+            # populate private key if available from subkey inspect
+            if not self.private_key_hex and derived.private_key_hex:
+                self.private_key_hex = derived.private_key_hex
             return self
         raise ValueError("No data available to derive from; provide secret_phrase or public_key_hex")
 
@@ -198,13 +278,18 @@ class Key(BaseModel):
 
         Uses Pydantic's JSON mode so datetimes are converted to ISO strings.
         """
-        data = self.model_dump(mode="json")
+        data = self.model_dump(mode="python")
         if not include_secret:
             data.pop("secret_phrase", None)
+            data.pop("private_key_hex", None)
+        # Ensure byte_array is JSON-safe (hex string) rather than raw bytes
+        byte_arr = data.get("byte_array")
+        if isinstance(byte_arr, (bytes, bytearray)):
+            data["byte_array"] = "0x" + bytes(byte_arr).hex()
         return data
 
     # Encryption format: JSON with scrypt params, salt, nonce, ciphertext (base64)
-    def encrypt(self, password: str) -> dict:
+    def encrypt(self, password: str | bytes) -> dict:
         """Encrypt this key with the given `password` and return an encrypted JSON blob."""
         _require_crypto()
         payload = json.dumps(self.to_json(include_secret=True), default=_json_default).encode()
@@ -220,7 +305,7 @@ class Key(BaseModel):
         }
 
     @staticmethod
-    def decrypt(encrypted_blob: dict, password: str) -> "Key":
+    def decrypt(encrypted_blob: dict, password: str | bytes) -> "Key":
         """Decrypt a previously saved key blob using `password` and reconstruct a Key."""
         _require_crypto()
         if encrypted_blob.get("kdf") != "scrypt":
@@ -231,12 +316,21 @@ class Key(BaseModel):
         key = _kdf_scrypt(password, salt, n=n, r=r, p=p)
         plaintext_bytes = _aesgcm_decrypt(key, encrypted_blob["nonce"], encrypted_blob["ciphertext"])  # type: ignore
         decrypted_data = json.loads(plaintext_bytes.decode())
+        # Convert byte_array back from hex string if present
+        byte_array_value = decrypted_data.get("byte_array")
+        if isinstance(byte_array_value, str) and byte_array_value.startswith("0x"):
+            try:
+                decrypted_data["byte_array"] = bytes.fromhex(byte_array_value[2:])
+            except ValueError:
+                decrypted_data["byte_array"] = None
         return Key(
             scheme=decrypted_data["scheme"],
             network=decrypted_data.get("network", "substrate"),
             secret_phrase=decrypted_data.get("secret_phrase"),
             public_key_hex=decrypted_data.get("public_key_hex"),
+            private_key_hex=decrypted_data.get("private_key_hex"),
             ss58_address=decrypted_data.get("ss58_address"),
+            byte_array=decrypted_data.get("byte_array"),
             key_type=decrypted_data.get("key_type"),
             is_pair=decrypted_data.get("is_pair", False),
             is_multisig=decrypted_data.get("is_multisig", False),
@@ -246,13 +340,31 @@ class Key(BaseModel):
             created_at=datetime.now(UTC),
         )
 
-    def save(self, path: str, password: str | None = None) -> None:
+    def save(self, path: str, password: str | bytes | None = None) -> None:
         """Encrypt and write the key to `path`. If no password is provided, prompt securely."""
+        # Best-effort enrichment prior to save: ensure we persist private_key_hex and byte_array
+        try:
+            if self.secret_phrase and not self.private_key_hex:
+                derived = Key.from_secret_phrase(self.secret_phrase, self.scheme, self.network)
+                if derived.private_key_hex and not self.private_key_hex:
+                    self.private_key_hex = derived.private_key_hex
+                if derived.ss58_address and not self.ss58_address:
+                    self.ss58_address = derived.ss58_address
+                if not self.byte_array:
+                    self.byte_array = ss58_to_bytes(self.ss58_address)
+            elif self.ss58_address and not self.byte_array:
+                self.byte_array = ss58_to_bytes(self.ss58_address)
+        except Exception:
+            # Do not block saving if enrichment fails
+            pass
         if password is None:
-            pw1 = getpass("Set password for key file: ")
-            pw2 = getpass("Confirm password: ")
+            console.print("[cyan]Hit Ctrl-C to exit[/cyan]")
+            pw1 = _read_password_bytes_interactive("Set password for key file: ")
+            pw2 = _read_password_bytes_interactive("Confirm password: ")
             if pw1 != pw2:
                 raise ValueError("Passwords do not match")
+            if len(pw1) == 0:
+                raise ValueError("Password cannot be empty")
             password = pw1
         blob = self.encrypt(password)
         # Ensure the parent directory exists
@@ -262,10 +374,10 @@ class Key(BaseModel):
             json.dump(blob, file, indent=2)
 
     @staticmethod
-    def load(path: str, password: str | None = None) -> "Key":
+    def load(path: str, password: str | bytes | None = None) -> "Key":
         """Load and decrypt a key from `path`. If no password is provided, prompt securely."""
         if password is None:
-            password = getpass("Password for key file: ")
+            password = _read_password_bytes_interactive("Password for key file: ")
         with open(os.path.expanduser(path), "r") as file:
             encrypted_blob = json.load(file)
         return Key.decrypt(encrypted_blob, password)
@@ -291,6 +403,17 @@ def subkey_inspect(public_hex: str, network: str, scheme: str) -> dict:
     out = run(["subkey", "inspect", "--network", network, "--public", "--scheme", scheme, public_hex])
     return parse_subkey_generate(out)
 
+
+def ss58_to_bytes(address: str | None) -> bytes | None:
+    """Decode an SS58 address to its 32-byte AccountId, returning bytes or None on failure."""
+    if not address:
+        return None
+    try:
+        from substrateinterface.utils.ss58 import ss58_decode
+        hex_str = ss58_decode(address)
+        return bytes.fromhex(hex_str)
+    except Exception:
+        return None
 
 def multisig_address(signers: list[str], threshold: int, ss58_prefix: int) -> dict:
     """Compute a deterministic pallet-multisig address from signers and threshold."""
@@ -326,12 +449,16 @@ def multisig_address(signers: list[str], threshold: int, ss58_prefix: int) -> di
 
 
 def _print_json(data_obj: dict):
-    """Pretty-print JSON to terminal if TTY, otherwise emit raw JSON for piping."""
-    # If stdout is a TTY, use rich pretty JSON; otherwise raw JSON for piping
+    """Pretty-print JSON robustly, converting datetimes via _json_default.
+
+    - If stdout is a TTY, render pretty using Rich from pre-serialized JSON text.
+    - Otherwise, emit raw JSON text.
+    """
+    json_text = json.dumps(data_obj, indent=2, default=_json_default)
     if sys.stdout.isatty():
-        console.print(JSON.from_data(data_obj))
+        console.print(json_text)
     else:
-        sys.stdout.write(json.dumps(data_obj, indent=2, default=_json_default) + "\n")
+        sys.stdout.write(json_text + "\n")
 
 
 def _default_out_path(scheme: str, role_hint: str | None = None) -> str:
@@ -348,18 +475,52 @@ def _default_out_path(scheme: str, role_hint: str | None = None) -> str:
     return os.path.join(DEFAULT_KEYS_DIR, filename)
 
 
-def _save_key_with_password(key_obj: "Key", out_path: str | None, scheme: str, password: str | None, role_hint: str | None = None) -> str:
+def _save_key_with_password(key_obj: "Key", out_path: str | None, scheme: str, password: str | bytes | None, role_hint: str | None = None) -> str:
     """Save key_obj to out_path (or default), using provided password (non-interactive) or prompting if None."""
     target_path = os.path.expanduser(out_path) if out_path else _default_out_path(scheme, role_hint)
     key_obj.save(target_path, password)
     return target_path
 
 
+def _read_password_sources(password: str | None, password_file: str | None, password_stdin: bool, prompt: bool, prompt_set: str, prompt_confirm: str, for_load: bool = False) -> str | bytes | None:
+    """Obtain password from: direct arg, file, stdin, or interactive prompt."""
+    if password is not None:
+        return password
+    if password_file:
+        with open(os.path.expanduser(password_file), "rb") as f:
+            return f.read().rstrip(b"\r\n")
+    if password_stdin:
+        return sys.stdin.buffer.readline().rstrip(b"\r\n")
+    if prompt:
+        if for_load:
+            return _read_password_bytes_interactive(prompt_set)
+        else:
+            pw1 = _read_password_bytes_interactive(prompt_set)
+            pw2 = _read_password_bytes_interactive(prompt_confirm)
+            if pw1 != pw2:
+                raise ValueError("Passwords do not match")
+            return pw1
+    return None
+
+
 def cmd_gen(args):
     """Handle `gen` subcommand: generate a single keypair and save it encrypted."""
     key_obj = subkey_generate(args.scheme, args.network)
-    saved_path = _save_key_with_password(key_obj, args.out, args.scheme, args.password)
-    console.print(f"[green]Saved generated key to[/green] {saved_path}")
+    # Determine output path: prefer --out full path; else --name under default dir; else timestamped default
+    if args.out:
+        out_path = os.path.expanduser(args.out)
+    else:
+        ensure_keys_dir()
+        if getattr(args, "name", None):
+            filename = args.name
+            if not filename.endswith(".json"):
+                filename += ".json"
+            out_path = os.path.join(DEFAULT_KEYS_DIR, filename)
+        else:
+            out_path = _default_out_path(args.scheme, None)
+    pw = _read_password_sources(args.password, getattr(args, "password_file", None), getattr(args, "password_stdin", False), True, "Set password for key file: ", "Confirm password: ")
+    key_obj.save(out_path, pw)
+    console.print(f"[green]Saved generated key to[/green] {out_path}")
     _print_json(key_obj.to_json(include_secret=False))
 
 
@@ -371,10 +532,24 @@ def cmd_gen_all(args):
     out_dir = os.path.expanduser(args.out_dir) if getattr(args, "out_dir", None) else DEFAULT_KEYS_DIR
     os.makedirs(out_dir, exist_ok=True)
     timestamp_str = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-    aura_filename = os.path.join(out_dir, f"{timestamp_str}-aura-sr25519.json")
-    grandpa_filename = os.path.join(out_dir, f"{timestamp_str}-grandpa-ed25519.json")
-    aura_key.save(aura_filename, args.password)
-    grandpa_key.save(grandpa_filename, args.password)
+    # Filenames: allow user-provided names, else timestamp defaults
+    if getattr(args, "aura_name", None):
+        aura_base = args.aura_name
+        if not aura_base.endswith(".json"):
+            aura_base += ".json"
+    else:
+        aura_base = f"{timestamp_str}-aura-sr25519.json"
+    if getattr(args, "grandpa_name", None):
+        grandpa_base = args.grandpa_name
+        if not grandpa_base.endswith(".json"):
+            grandpa_base += ".json"
+    else:
+        grandpa_base = f"{timestamp_str}-grandpa-ed25519.json"
+    aura_filename = os.path.join(out_dir, aura_base)
+    grandpa_filename = os.path.join(out_dir, grandpa_base)
+    pw = _read_password_sources(args.password, getattr(args, "password_file", None), getattr(args, "password_stdin", False), True, "Set password for key files: ", "Confirm password: ")
+    aura_key.save(aura_filename, pw)
+    grandpa_key.save(grandpa_filename, pw)
     console.print(f"[green]Saved Aura key to[/green] {aura_filename}")
     console.print(f"[green]Saved GRANDPA key to[/green] {grandpa_filename}")
     _print_json({
@@ -411,12 +586,20 @@ def cmd_derive(args):
 
 def cmd_key_save(args):
     """Handle `key-save` subcommand: encrypt a key and save it to disk."""
+    phrase: str | None = None
+    if getattr(args, "phrase_prompt", False) or (not args.phrase and not args.public):
+        # Securely prompt for the phrase (hidden input). Do not echo to terminal/history.
+        phrase = getpass("Enter secret phrase (input hidden): ")
+        if not phrase:
+            raise ValueError("Secret phrase cannot be empty")
     if args.phrase:
-        key_obj = Key.from_secret_phrase(args.phrase, args.scheme, args.network)
+        phrase = args.phrase
+    if phrase:
+        key_obj = Key.from_secret_phrase(phrase, args.scheme, args.network)
     elif args.public:
         key_obj = Key.from_public(args.public, args.scheme, args.network)
     else:
-        raise ValueError("Provide --phrase or --public")
+        raise ValueError("Provide --phrase/--phrase-prompt or --public")
     # Determine output path
     if args.out:
         out_path = os.path.expanduser(args.out)
@@ -430,15 +613,71 @@ def cmd_key_save(args):
             timestamp_str = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
             filename = f"{timestamp_str}-{args.scheme}.json"
         out_path = os.path.join(DEFAULT_KEYS_DIR, filename)
-    key_obj.save(out_path, None if args.prompt else args.password)
+    pw = _read_password_sources(args.password, getattr(args, "password_file", None), getattr(args, "password_stdin", False), bool(getattr(args, "prompt", False)), "Set password for key file: ", "Confirm password: ")
+    key_obj.save(out_path, pw)
     console.print(f"[green]Saved encrypted key to[/green] {out_path}")
 
 
 def cmd_key_load(args):
     """Handle `key-load` subcommand: decrypt a key file and print fields."""
     path = resolve_key_path(args.file)
-    key_obj = Key.load(path, None if args.prompt else args.password)
+    pw = _read_password_sources(args.password, getattr(args, "password_file", None), getattr(args, "password_stdin", False), bool(getattr(args, "prompt", False)), "Password for key file: ", "", for_load=True)
+    key_obj = Key.load(path, pw)
     _print_json(key_obj.to_json(include_secret=args.with_secret))
+
+
+def cmd_list(args):
+    files = list_key_files()
+    if not files:
+        console.print("[yellow]No key files found in[/yellow] " + DEFAULT_KEYS_DIR)
+        return
+    rows = [
+        {
+            "index": i,
+            "file": os.path.basename(p),
+            "modified": datetime.fromtimestamp(os.path.getmtime(p), UTC).isoformat(),
+        }
+        for i, p in enumerate(files)
+    ]
+    _print_json({"keys_dir": DEFAULT_KEYS_DIR, "items": rows})
+
+
+def cmd_select(args):
+    files = list_key_files()
+    if not files:
+        console.print("[yellow]No key files found in[/yellow] " + DEFAULT_KEYS_DIR)
+        return
+    if args.index is not None:
+        idx = args.index
+        if idx < 0 or idx >= len(files):
+            raise ValueError(f"Index out of range (0..{len(files)-1})")
+        chosen = files[idx]
+        interactive = False
+    else:
+        console.print(f"[cyan]Select a key file from[/cyan] {DEFAULT_KEYS_DIR}:")
+        for i, p in enumerate(files):
+            console.print(f"  [{i}] {os.path.basename(p)}")
+        while True:
+            s = input("Enter index: ").strip()
+            if s.isdigit():
+                idx = int(s)
+                if 0 <= idx < len(files):
+                    chosen = files[idx]
+                    break
+            console.print("[red]Invalid selection, try again.[/red]")
+        interactive = True
+    # Build result and decide whether to show key contents.
+    result = {"index": idx, "selected": chosen, "filename": os.path.basename(chosen)}
+    do_show = bool(getattr(args, "show", False) or interactive)
+    if do_show:
+        try:
+            # If no password provided, pass None to trigger secure prompt inside Key.load
+            pw = args.password if getattr(args, "password", None) else None
+            key_obj = Key.load(chosen, pw)
+            result["key"] = key_obj.to_json(include_secret=bool(getattr(args, "with_secret", False)))
+        except Exception as e:
+            result["error"] = f"failed to load: {e}"
+    _print_json(result)
 
 
 
@@ -458,11 +697,12 @@ def run(cmd: list[str]) -> str:
     return proc.stdout
 
 def parse_subkey_generate(output: str) -> dict:
-    """Parse `subkey generate/inspect` output for secret phrase, public key, and SS58."""
+    """Parse `subkey generate/inspect` output for secret phrase, secret seed, public key, and SS58."""
     # subkey generate --scheme <scheme> prints a well-known format
     # We'll extract: Secret phrase, Public key (hex), SS58 Address
     data = {
         "secret_phrase": None,
+        "secret_seed": None,  # 0x-prefixed seed/private key
         "public_key_hex": None,
         "ss58_address": None,
     }
@@ -471,6 +711,9 @@ def parse_subkey_generate(output: str) -> dict:
         if line.lower().startswith("secret phrase"):
             # e.g., Secret phrase:      equip will roof ...
             data["secret_phrase"] = line.split(":", 1)[1].strip()
+        elif line.lower().startswith("secret seed"):
+            # e.g., Secret seed:       0x1234...
+            data["secret_seed"] = line.split(":", 1)[1].strip()
         elif line.lower().startswith("public key (hex)"):
             data["public_key_hex"] = line.split(":", 1)[1].strip()
         elif line.lower().startswith("ss58 address"):
@@ -483,13 +726,18 @@ def subkey_generate(scheme: str, network: str) -> Key:
     out = run(["subkey", "generate", "--scheme", scheme, "--network", network])
     parsed = parse_subkey_generate(out)
     secret = parsed.get("secret_phrase")
+    private_hex = parsed.get("secret_seed")
+    ss58_addr = parsed.get("ss58_address")
+    acct_bytes = ss58_to_bytes(ss58_addr)
     if scheme == "sr25519":
         return AuraSR25519Key(
             scheme=scheme,
             network=network,
             secret_phrase=secret,
             public_key_hex=parsed.get("public_key_hex"),
-            ss58_address=parsed.get("ss58_address"),
+            private_key_hex=private_hex,
+            ss58_address=ss58_addr,
+            byte_array=acct_bytes,
             key_type="sr25519",
             is_pair=True,
             created_at=datetime.now(UTC),
@@ -500,7 +748,9 @@ def subkey_generate(scheme: str, network: str) -> Key:
             network=network,
             secret_phrase=secret,
             public_key_hex=parsed.get("public_key_hex"),
-            ss58_address=parsed.get("ss58_address"),
+            private_key_hex=private_hex,
+            ss58_address=ss58_addr,
+            byte_array=acct_bytes,
             key_type="ed25519",
             is_pair=True, 
             created_at=datetime.now(UTC),
@@ -523,13 +773,20 @@ def main():
     p_gen.add_argument("--scheme", choices=["sr25519", "ed25519"], required=True)
     p_gen.add_argument("--network", default="substrate")
     p_gen.add_argument("--out", help="Output file path (default: ~/.modnet/keys/<timestamp>-<scheme>.json)")
+    p_gen.add_argument("--name", help="Filename to use under ~/.modnet/keys instead of a timestamp (e.g., aura-validator.json)")
     p_gen.add_argument("--password", help="Encrypt without prompting using this password")
+    p_gen.add_argument("--password-file", help="Read password bytes from a file (raw, newline trimmed)")
+    p_gen.add_argument("--password-stdin", action="store_true", help="Read password bytes from stdin (first line)")
     p_gen.set_defaults(func=cmd_gen)
 
     p_gen_all = sub.add_parser("gen-all", help="Generate Aura (sr25519) and GRANDPA (ed25519) keypairs")
     p_gen_all.add_argument("--network", default="substrate")
     p_gen_all.add_argument("--out-dir", help="Directory to save both keys (default: ~/.modnet/keys/)")
+    p_gen_all.add_argument("--aura-name", help="Filename for the Aura key (e.g., aura-node-1.json)")
+    p_gen_all.add_argument("--grandpa-name", help="Filename for the GRANDPA key (e.g., grandpa-node-1.json)")
     p_gen_all.add_argument("--password", help="Encrypt without prompting using this password for both keys")
+    p_gen_all.add_argument("--password-file", help="Read password bytes from a file (raw, newline trimmed)")
+    p_gen_all.add_argument("--password-stdin", action="store_true", help="Read password bytes from stdin (first line)")
     p_gen_all.set_defaults(func=cmd_gen_all)
 
     p_inspect = sub.add_parser("inspect", help="Inspect a public key to SS58 address")
@@ -556,10 +813,13 @@ def main():
     p_save.add_argument("--scheme", choices=["sr25519", "ed25519"], required=True)
     p_save.add_argument("--network", default="substrate")
     p_save.add_argument("--phrase", help="Secret phrase (mnemonic)")
+    p_save.add_argument("--phrase-prompt", action="store_true", help="Prompt securely for the secret phrase (input hidden)")
     p_save.add_argument("--public", help="0x<hex public key>")
     p_save.add_argument("--out", help="Output file path (default: ~/.modnet/keys/<timestamp>-<scheme>.json)")
     p_save.add_argument("--name", help="Filename to use under ~/.modnet/keys (e.g., aura-sr25519.json)")
     p_save.add_argument("--password", help="Password (omit to be prompted)")
+    p_save.add_argument("--password-file", help="Read password bytes from a file (raw, newline trimmed)")
+    p_save.add_argument("--password-stdin", action="store_true", help="Read password bytes from stdin (first line)")
     p_save.add_argument("--prompt", action="store_true", help="Prompt for password (recommended)")
     p_save.set_defaults(func=cmd_key_save)
 
@@ -568,16 +828,21 @@ def main():
     p_save2.add_argument("--scheme", choices=["sr25519", "ed25519"], required=True)
     p_save2.add_argument("--network", default="substrate")
     p_save2.add_argument("--phrase", help="Secret phrase (mnemonic)")
+    p_save2.add_argument("--phrase-prompt", action="store_true", help="Prompt securely for the secret phrase (input hidden)")
     p_save2.add_argument("--public", help="0x<hex public key>")
     p_save2.add_argument("--out", help="Output file path (default: ~/.modnet/keys/<timestamp>-<scheme>.json)")
     p_save2.add_argument("--name", help="Filename to use under ~/.modnet/keys (e.g., aura-sr25519.json)")
     p_save2.add_argument("--password", help="Password (omit to be prompted)")
+    p_save2.add_argument("--password-file", help="Read password bytes from a file (raw, newline trimmed)")
+    p_save2.add_argument("--password-stdin", action="store_true", help="Read password bytes from stdin (first line)")
     p_save2.add_argument("--prompt", action="store_true", help="Prompt for password (recommended)")
     p_save2.set_defaults(func=cmd_key_save)
 
     p_load = sub.add_parser("key-load", help="Decrypt a saved key file and print fields")
     p_load.add_argument("--file", required=True, help="Path or filename in ~/.modnet/keys")
     p_load.add_argument("--password", help="Password (omit to be prompted)")
+    p_load.add_argument("--password-file", help="Read password bytes from a file (raw, newline trimmed)")
+    p_load.add_argument("--password-stdin", action="store_true", help="Read password bytes from stdin (first line)")
     p_load.add_argument("--prompt", action="store_true", help="Prompt for password")
     p_load.add_argument("--with-secret", action="store_true", help="Include secret in output")
     p_load.set_defaults(func=cmd_key_load)
@@ -586,9 +851,22 @@ def main():
     p_load2 = sub.add_parser("load", help="Alias for key-load")
     p_load2.add_argument("--file", required=True, help="Path or filename in ~/.modnet/keys")
     p_load2.add_argument("--password", help="Password (omit to be prompted)")
+    p_load2.add_argument("--password-file", help="Read password bytes from a file (raw, newline trimmed)")
+    p_load2.add_argument("--password-stdin", action="store_true", help="Read password bytes from stdin (first line)")
     p_load2.add_argument("--prompt", action="store_true", help="Prompt for password")
     p_load2.add_argument("--with-secret", action="store_true", help="Include secret in output")
     p_load2.set_defaults(func=cmd_key_load)
+
+    p_list = sub.add_parser("list", help="List key files in ~/.modnet/keys")
+    p_list.set_defaults(func=cmd_list)
+
+    p_select = sub.add_parser("select", help="Interactively select a key file from ~/.modnet/keys")
+    p_select.add_argument("--index", type=int, help="Preselect by index (non-interactive)")
+    p_select.add_argument("--show", action="store_true", help="After selecting, decrypt and print the key JSON")
+    p_select.add_argument("--with-secret", action="store_true", help="Include secret in output when using --show")
+    p_select.add_argument("--password", help="Password for decryption (omit to prompt)")
+    p_select.add_argument("--prompt", action="store_true", help="Prompt for password when using --show")
+    p_select.set_defaults(func=cmd_select)
 
 
     if len(sys.argv) == 1:

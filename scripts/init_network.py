@@ -31,6 +31,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+import re
 
 from rich import print
 from rich.console import Console
@@ -86,11 +87,16 @@ def main():
         console.print(f"[red]Missing binary[/red]: {NODE_BIN}. Build first: cargo build --release")
         sys.exit(1)
 
-    plain = ROOT / f"{args.out_prefix}.json"
-    raw = ROOT / f"{args.out_prefix}-raw.json"
+    # Ensure output directory exists
+    specs_dir = ROOT / "specs"
+    specs_dir.mkdir(parents=True, exist_ok=True)
+    plain = specs_dir / f"{args.out_prefix}.json"
+    raw = specs_dir / f"{args.out_prefix}-raw.json"
 
     console.print(f"[cyan]Building base spec for[/cyan] {args.chain_id} -> {plain}")
-    run([str(NODE_BIN), "build-spec", "--chain", args.chain_id, "-o", str(plain)])
+    plain_text = run([str(NODE_BIN), "build-spec", "--chain", args.chain_id])
+    with plain.open("w") as f:
+        f.write(plain_text)
 
     # Load, patch, write
     with plain.open("r") as f:
@@ -102,9 +108,34 @@ def main():
         console.print("[red]Unexpected chainspec layout; cannot find runtimeGenesis.patch[/red]")
         sys.exit(1)
 
-    # Accept SS58 or hex; chainspec builder accepts SS58 accounts
-    patch.setdefault("aura", {})["authorities"] = [args.aura]
-    patch.setdefault("grandpa", {})["authorities"] = [[args.grandpa, 1]]
+    # Accept SS58 or 0x-hex public keys. If hex, convert to SS58 using subkey.
+    def _to_ss58(val: str, scheme: str) -> str:
+        s = (val or "").strip()
+        if s.startswith("0x"):
+            out = run([str(NODE_BIN), "subkey", "inspect", "--public", "--scheme", scheme, s]) if False else None
+            # modnet-node may not expose subkey; use standalone subkey on PATH instead
+            try:
+                subkey_out = subprocess.run(["subkey", "inspect", "--network", "substrate", "--public", "--scheme", scheme, s], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                if subkey_out.returncode != 0:
+                    raise RuntimeError(subkey_out.stderr)
+                # parse SS58 Address line
+                ss58 = None
+                for line in subkey_out.stdout.splitlines():
+                    if line.lower().startswith("ss58 address"):
+                        ss58 = line.split(":", 1)[1].strip()
+                        break
+                if not ss58:
+                    raise RuntimeError("failed to parse SS58 from subkey output")
+                return ss58
+            except Exception as e:
+                raise RuntimeError(f"Failed to convert hex to SS58 via subkey for scheme {scheme}: {e}")
+        return s
+
+    aura_ss58 = _to_ss58(args.aura, "sr25519")
+    grandpa_ss58 = _to_ss58(args.grandpa, "ed25519")
+
+    patch.setdefault("aura", {})["authorities"] = [aura_ss58]
+    patch.setdefault("grandpa", {})["authorities"] = [[grandpa_ss58, 1]]
 
     if args.sudo:
         patch.setdefault("sudo", {})["key"] = args.sudo
@@ -116,9 +147,21 @@ def main():
         console.print(f"Computed sudo multisig: [green]{sudo_ms}[/green]")
         patch.setdefault("sudo", {})["key"] = sudo_ms
 
-    # Bootnodes
+    # Bootnodes: validate and filter to avoid invalid multiaddrs breaking build-spec
     if args.bootnode:
-        spec["bootNodes"] = args.bootnode
+        def _valid_multiaddr(s: str) -> bool:
+            s = (s or "").strip()
+            # Very simple check: /ip4/<ipv4>/tcp/<port>/p2p/<peerid>
+            pat = re.compile(r"^/ip4/\d+\.\d+\.\d+\.\d+/tcp/\d+/p2p/[A-Za-z0-9]+$")
+            return bool(pat.match(s))
+
+        cleaned = [b.strip() for b in args.bootnode if isinstance(b, str) and b.strip()]
+        valid = [b for b in cleaned if _valid_multiaddr(b)]
+        skipped = [b for b in cleaned if b not in valid]
+        if skipped:
+            console.print(f"[yellow]Skipping invalid bootnode multiaddr(s):[/yellow] {skipped}")
+        if valid:
+            spec["bootNodes"] = valid
 
     # Telemetry
     if args.telemetry:
@@ -129,7 +172,9 @@ def main():
         json.dump(spec, f, indent=2)
 
     console.print(f"[cyan]Building raw spec ->[/cyan] {raw}")
-    run([str(NODE_BIN), "build-spec", "--chain", str(plain), "--raw", "-o", str(raw)])
+    raw_text = run([str(NODE_BIN), "build-spec", "--chain", str(plain), "--raw"])
+    with raw.open("w") as f:
+        f.write(raw_text)
     console.print("[green]Done.[/green]")
 
 

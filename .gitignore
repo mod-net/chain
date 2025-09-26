@@ -1,7 +1,8 @@
 .venv
 .env
 !.env.example
-
+Cargo.lock
+scripts/uv.lock
 
 
 # Rust
