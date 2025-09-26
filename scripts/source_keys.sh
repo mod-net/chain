@@ -17,8 +17,8 @@ if [[ ! -d "$target_dir" ]]; then
   exit 1
 fi
 
-# gather files in stable order
-mapfile -d '' files < <(find "$target_dir" -maxdepth 1 -type f -print0 | sort -z)
+# gather files in stable order (only JSON key files and optional nodekey hex files)
+mapfile -d '' files < <(find "$target_dir" -maxdepth 1 -type f \( -name '*.json' -o -name 'nodekey-*.hex' \) -print0 | sort -z)
 
 if [[ ${#files[@]} -eq 0 ]]; then
   echo "No key files found in $target_dir" >&2
@@ -39,6 +39,26 @@ for i in "${!files[@]}"; do
   tmp="$(mktemp)"
 
   echo "==== Loading key $idx: $file ===="
+
+  base_name_lc="$(basename -- "$file" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$base_name_lc" == nodekey-*.hex ]]; then
+    # Handle libp2p node key (plain hex). Do not invoke key_tools.py or prompt.
+    if [[ -s "$file" ]]; then
+      node_hex="$(head -n1 -- "$file" | tr -d '[:space:]')"
+      if [[ -n "$node_hex" ]]; then
+        export NODE_LIBP2P_KEY="$node_hex"
+        export NODE_LIBP2P_KEY_FILE="$file"
+        printf 'Loaded NODE_LIBP2P_KEY from %s\n' "$file"
+      else
+        echo "WARN: nodekey file $file appears empty" >&2
+      fi
+    else
+      echo "WARN: nodekey file $file is empty or unreadable" >&2
+    fi
+    rm -f "$tmp"
+    continue
+  fi
+
   echo "If prompted, type the passphrase in your terminal."
 
   # run interactively: read input from your terminal, send both stdout+stderr to tee

@@ -38,7 +38,7 @@ load_bootnode_from_specs() {
   if [[ -f "$bn_file" ]]; then
     if command -v jq >/dev/null 2>&1; then
       # If value is a string, wrap as array; if array, iterate
-      mapfile -t addrs < <(jq -r --arg k "$NAME" '.[ $k ] | if type=="string" then [.] elif type=="array" then . else [] end | .[]' "$bn_file" 2>/dev/null || true)
+      mapfile -t addrs < <(jq -r --arg k "$NAME" '.[ $k ] | if type=="string" then [.] elif type =="array" then . else [] end | .[]' "$bn_file" 2>/dev/null || true)
       for a in "${addrs[@]}"; do
         if [[ -n "$a" ]]; then
           echo "Using bootnode for $NAME from specs: $a"
@@ -47,7 +47,7 @@ load_bootnode_from_specs() {
         fi
       done
     else
-      python3 - "$bn_file" "$NAME" <<'PY' 2>/dev/null
+      python3 - "$bn_file" "$NAME" 2>/dev/null <<'PY' | while IFS= read -r a; do
 import sys, json
 path, key = sys.argv[1], sys.argv[2]
 try:
@@ -64,7 +64,6 @@ try:
 except Exception:
     pass
 PY
-      | while IFS= read -r a; do
           if [[ -n "$a" ]]; then
             echo "Using bootnode for $NAME from specs: $a"
             NODE_ARGS+=(--bootnodes "$a")
@@ -78,7 +77,39 @@ PY
   fi
   return 1
 }
-
+# Obtain or generate a libp2p node key (ed25519 secret) for --node-key
+get_or_generate_node_key() {
+  # Respect environment override if provided
+  if [[ -n "${NODE_LIBP2P_KEY:-}" ]]; then
+    echo "Using NODE_LIBP2P_KEY from environment"
+    return 0
+  fi
+  read -p "Generate a persistent libp2p node key for '$NAME'? (y/n): " gen_nodekey
+  if [[ "$gen_nodekey" != "y" ]]; then
+    return 1
+  fi
+  if ! command -v subkey >/dev/null 2>&1; then
+    echo "ERROR: 'subkey' is required to generate the node key. Install Substrate subkey tool." >&2
+    return 1
+  fi
+  echo "Generating libp2p node key with 'subkey generate-node-key'..."
+  local key_hex
+  if ! key_hex="$(subkey generate-node-key 2>/dev/null)"; then
+    echo "ERROR: Failed to generate node key via subkey" >&2
+    return 1
+  fi
+  # subkey prints the key hex; trim whitespace just in case
+  key_hex="$(printf '%s' "$key_hex" | tr -d '[:space:]')"
+  # Persist for reuse
+  local key_dir="$HOME/.modnet/keys"
+  mkdir -p "$key_dir"
+  local key_file="$key_dir/nodekey-${NAME}.hex"
+  printf '%s\n' "$key_hex" >"$key_file"
+  chmod 600 "$key_file" || true
+  export NODE_LIBP2P_KEY="$key_hex"
+  echo "Saved libp2p node key to $key_file and will pass via --node-key."
+  return 0
+}
 if [[ -z "$NODE_PATH" || ! -x "$NODE_PATH" ]]; then
   echo "ERROR: NODE_PATH not set or not executable: $NODE_PATH" >&2
   exit 1
@@ -90,6 +121,9 @@ read -rp "Node number: " NODE_NUMBER
 bash "$SCRIPT_PATH/setup_ngrok.sh" "$NODE_TYPE" "$NODE_NUMBER"
 
 NAME="${NODE_TYPE}-${NODE_NUMBER}"
+# Ensure base-path subdirectories exist so the node can write its network key if needed
+mkdir -p "$HOME/.modnet/data/chains/modnet-testnet/network"
+
 RPC_PORT=""
 P2P_PORT=""
 PROM_PORT=""
@@ -143,6 +177,8 @@ if [[ -z "$NODE_LIBP2P_KEY" ]]; then
   echo "INFO: NODE_LIBP2P_KEY not set; starting without --node-key."
 fi
 
+# Give a chance to generate/pick a libp2p node key to avoid NetworkKeyNotFound
+get_or_generate_node_key || true
 
 # Build node args (unsafe flags for validator)
 NODE_ARGS=(--chain $CHAIN_PATH/specs/modnet-testnet-raw.json --name "$NAME" --listen-addr "/ip4/0.0.0.0/tcp/${P2P_PORT}" --rpc-cors all --rpc-port "$RPC_PORT" --base-path "$HOME/.modnet/data" --prometheus-external --prometheus-port "$PROM_PORT")
@@ -275,3 +311,5 @@ if [[ "$use_pm2" == "y" ]]; then
 else
   echo "Done. Node running. Monitor logs: tail -f $LOG_FILE"
 fi
+
+
