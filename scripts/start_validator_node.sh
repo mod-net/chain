@@ -59,10 +59,16 @@ LOG_FILE="${LOG_DIR}/${NAME}.log"
 tmp_out="$(mktemp)"
 
 # generate aura and grandpa
-uv run "$KEY_TOOL" gen-all < /dev/tty 2>&1 | tee "$tmp_out"
+read -p "Generate aura and grandpa keys? (y/n): " generate_keys
+if [[ "$generate_keys" == "y" ]]; then
+  uv run "$KEY_TOOL" gen-all < /dev/tty 2>&1 | tee "$tmp_out"
+fi
 
-echo "Running key generation. If prompted, type passphrase in your terminal."
-uv run "$KEY_TOOL" gen --scheme sr25519 --name "$NAME" < /dev/tty 2>&1 | tee -a "$tmp_out"
+read -p "Generate validator key? (y/n): " generate_validator_key
+if [[ "$generate_validator_key" == "y" ]]; then
+  echo "Running key generation. If prompted, type passphrase in your terminal."
+  uv run "$KEY_TOOL" gen --scheme sr25519 --name "$NAME" < /dev/tty 2>&1 | tee -a "$tmp_out"
+fi
 
 # load exported key variables from source_keys.sh (AURA/GRANDPA, plus filename-derived)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -82,7 +88,7 @@ if [[ -z "$NODE_PUB_KEY" ]]; then
 fi
 
 # Build node args (unsafe flags for validator)
-NODE_ARGS=(--chain $CHAIN_PATH/modnet-testnet-raw.json --name "$NAME" --listen-addr "/ip4/0.0.0.0/tcp/3033${NODE_NUMBER}" --rpc-cors all --rpc-port "$RPC_PORT" --base-path "$HOME/.modnet/data")
+NODE_ARGS=(--chain $CHAIN_PATH/specs/modnet-testnet-raw.json --name "$NAME" --listen-addr "/ip4/0.0.0.0/tcp/3033${NODE_NUMBER}" --rpc-cors all --rpc-port "$RPC_PORT" --base-path "$HOME/.modnet/data")
 if [[ -n "$NODE_PUB_KEY" ]]; then
   NODE_ARGS+=(--node-key "$NODE_PUB_KEY")
 fi

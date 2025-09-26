@@ -1,4 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "cryptography",
+#     "pydantic",
+#     "rich",
+#     "rich-argparse",
+#     "scalecodec",
+#     "substrate-interface",
+# ]
+# ///
 """
 Initialize Modnet network specs (testnet/mainnet) by generating a base chainspec
 and patching authorities, sudo, telemetry endpoint, and boot nodes. Produces both

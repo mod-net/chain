@@ -1,4 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "cryptography",
+#     "pydantic",
+#     "rich",
+#     "rich-argparse",
+#     "scalecodec",
+#     "substrate-interface",
+# ]
+# ///
 """
 Insert session keys (Aura and GRANDPA) into a running node by decrypting
 previously saved key files and calling author_insertKey over JSON-RPC.
