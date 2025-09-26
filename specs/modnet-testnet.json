@@ -24,7 +24,7 @@
       "patch": {
         "aura": {
           "authorities": [
-            "5CmAtD9ZoAy9GZk9tHaDzfCAwmSCfKk6yGaJ12Jn9SK1NJd7"
+            "5DCPUgi4j87tQoziqRv6db1z7RoFbwVhPBDEr7QhxpP8Z8cQ"
           ]
         },
         "balances": {
@@ -82,7 +82,7 @@
         "grandpa": {
           "authorities": [
             [
-              "5FvLKzqiJefGKgo1gLHDnUJJsEezczRcbzMmwFMdBATgw5gv",
+              "5CGLLmCSLBB7tx71BqHvfrQDWyyBmXBSNrpo3pGfwCG6sBrT",
               1
             ]
           ]
