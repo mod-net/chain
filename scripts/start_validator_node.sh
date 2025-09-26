@@ -31,6 +31,54 @@ wait_for_rpc() {
   done
 }
 
+# Try to load a bootnode multiaddr from specs/boot_nodes.json for this node NAME
+load_bootnode_from_specs() {
+  local bn_file="$CHAIN_PATH/specs/boot_nodes.json"
+  local added=0
+  if [[ -f "$bn_file" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+      # If value is a string, wrap as array; if array, iterate
+      mapfile -t addrs < <(jq -r --arg k "$NAME" '.[ $k ] | if type=="string" then [.] elif type=="array" then . else [] end | .[]' "$bn_file" 2>/dev/null || true)
+      for a in "${addrs[@]}"; do
+        if [[ -n "$a" ]]; then
+          echo "Using bootnode for $NAME from specs: $a"
+          NODE_ARGS+=(--bootnodes "$a")
+          added=1
+        fi
+      done
+    else
+      python3 - "$bn_file" "$NAME" <<'PY' 2>/dev/null
+import sys, json
+path, key = sys.argv[1], sys.argv[2]
+try:
+    with open(path) as f:
+        data = json.load(f)
+    v = data.get(key)
+    addrs = []
+    if isinstance(v, str):
+        addrs = [v]
+    elif isinstance(v, list):
+        addrs = [x for x in v if isinstance(x, str)]
+    for a in addrs:
+        print(a)
+except Exception:
+    pass
+PY
+      | while IFS= read -r a; do
+          if [[ -n "$a" ]]; then
+            echo "Using bootnode for $NAME from specs: $a"
+            NODE_ARGS+=(--bootnodes "$a")
+            added=1
+          fi
+        done
+    fi
+  fi
+  if (( added > 0 )); then
+    return 0
+  fi
+  return 1
+}
+
 if [[ -z "$NODE_PATH" || ! -x "$NODE_PATH" ]]; then
   echo "ERROR: NODE_PATH not set or not executable: $NODE_PATH" >&2
   exit 1
@@ -42,7 +90,35 @@ read -rp "Node number: " NODE_NUMBER
 bash "$SCRIPT_PATH/setup_ngrok.sh" "$NODE_TYPE" "$NODE_NUMBER"
 
 NAME="${NODE_TYPE}-${NODE_NUMBER}"
-RPC_PORT="993${NODE_NUMBER}"
+RPC_PORT=""
+P2P_PORT=""
+PROM_PORT=""
+
+# Auto-derive ports per node type to avoid clashes across roles
+case "$NODE_TYPE" in
+  validator)
+    P2P_PORT="3033${NODE_NUMBER}"
+    RPC_PORT="993${NODE_NUMBER}"
+    PROM_PORT="961${NODE_NUMBER}"
+    ;;
+  full)
+    P2P_PORT="3043${NODE_NUMBER}"
+    RPC_PORT="994${NODE_NUMBER}"
+    PROM_PORT="962${NODE_NUMBER}"
+    ;;
+  archive)
+    P2P_PORT="3053${NODE_NUMBER}"
+    RPC_PORT="995${NODE_NUMBER}"
+    PROM_PORT="963${NODE_NUMBER}"
+    ;;
+  *)
+    # default fallbacks
+    P2P_PORT="3033${NODE_NUMBER}"
+    RPC_PORT="993${NODE_NUMBER}"
+    PROM_PORT="961${NODE_NUMBER}"
+    ;;
+esac
+
 RPC_URL="http://${RPC_HOST}:${RPC_PORT}"
 LOG_FILE="${LOG_DIR}/${NAME}.log"
 
@@ -69,7 +145,7 @@ fi
 
 
 # Build node args (unsafe flags for validator)
-NODE_ARGS=(--chain $CHAIN_PATH/specs/modnet-testnet-raw.json --name "$NAME" --listen-addr "/ip4/0.0.0.0/tcp/3033${NODE_NUMBER}" --rpc-cors all --rpc-port "$RPC_PORT" --base-path "$HOME/.modnet/data")
+NODE_ARGS=(--chain $CHAIN_PATH/specs/modnet-testnet-raw.json --name "$NAME" --listen-addr "/ip4/0.0.0.0/tcp/${P2P_PORT}" --rpc-cors all --rpc-port "$RPC_PORT" --base-path "$HOME/.modnet/data" --prometheus-external --prometheus-port "$PROM_PORT")
 if [[ -n "$NODE_LIBP2P_KEY" ]]; then
   NODE_ARGS+=(--node-key "$NODE_LIBP2P_KEY")
 fi
@@ -97,11 +173,13 @@ if [[ "$NODE_TYPE" == "validator" ]]; then
 fi
 
 # Optional bootnode
-read -p "Add a bootnode multiaddr? (y/n): " add_bootnode
-if [[ "$add_bootnode" == "y" ]]; then
-  read -rp "Enter bootnode multiaddr (e.g., /ip4/1.2.3.4/tcp/30333/p2p/12D3...): " BOOTNODE_ADDR
-  if [[ -n "${BOOTNODE_ADDR// }" ]]; then
-    NODE_ARGS+=(--bootnodes "$BOOTNODE_ADDR")
+if ! load_bootnode_from_specs; then
+  read -p "Add a bootnode multiaddr? (y/n): " add_bootnode
+  if [[ "$add_bootnode" == "y" ]]; then
+    read -rp "Enter bootnode multiaddr (e.g., /ip4/1.2.3.4/tcp/30333/p2p/12D3...): " BOOTNODE_ADDR
+    if [[ -n "${BOOTNODE_ADDR// }" ]]; then
+      NODE_ARGS+=(--bootnodes "$BOOTNODE_ADDR")
+    fi
   fi
 fi
 
