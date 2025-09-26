@@ -1,3 +1,10 @@
 {
-    "validator-1": "/ip4/127.0.0.1/tcp/30331/p2p/12D3KooWPhw8LNiQKtS5wtHuqNKhQoVq6nKP7L7ms39XKNoohxCg"
+    {
+        "validator-2": "/ip4/70.73.8.64/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG",
+        "validator-3": "/ip4/70.73.8.64/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG",
+        "full-1": "/ip4/70.73.8.64/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG",
+        "full-2": "/ip4/70.73.8.64/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG",
+        "full-3": "/ip4/70.73.8.64/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG",
+        "archive-1": "/ip4/70.73.8.64/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG"
+      }
 }
