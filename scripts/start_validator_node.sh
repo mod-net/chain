@@ -225,6 +225,11 @@ if [[ "$force_auth" == "y" ]]; then
   NODE_ARGS+=(--force-authoring)
 fi
 
+# Archive node should retain full history
+if [[ "$NODE_TYPE" == "archive" ]]; then
+  NODE_ARGS+=(--pruning archive)
+fi
+
 # start node
 if [[ "$use_pm2" == "y" ]]; then
   echo "Starting node with PM2 (log -> $LOG_FILE)"
