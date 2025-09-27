@@ -9,6 +9,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEY_TOOL_SCRIPT="${KEY_TOOL_SCRIPT:-$SCRIPT_DIR/key_tools.py}"
+sudo apt-get install clang
+cargo install subkey 
 
 if [[ ! -f "$KEY_TOOL_SCRIPT" ]]; then
   echo "ERROR: key tool not found at: $KEY_TOOL_SCRIPT" >&2
