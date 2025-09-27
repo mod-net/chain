@@ -4,10 +4,11 @@ set -euo pipefail
 NODE_TYPE=$1
 NODE_NUMBER=$2
 
-sed -e '/^endpoints:/,/protocol: http1$/c\
-  - name: "$NODE_TYPE_$NODE_NUMBER"\
-    url: "https://$NODE_TYPE-$NODE_NUMBER-comai.ngrok.dev"\
-    upstream:\
-      url:993"$NODE_NUMBER"\
-      protocol: http1
-' ~/.config/ngrok/ngrok.yml > ~/.config/ngrok/ngrok.new.yml
+TEMPLATE="endpoints:\n\
+  - name: "$NODE_TYPE"_"$NODE_NUMBER"\n\
+    url: \https://"$NODE_TYPE"-"$NODE_NUMBER"-comai.ngrok.dev\n\
+    upstream:\n\
+      url: 993$NODE_NUMBER\n\
+      protocol: http1"
+
+sed -e "/^endpoints:/,/protocol: http1$/c$TEMPLATE" $HOME/.config/ngrok/ngrok.yml > $HOME/.config/ngrok/ngrok.yml
