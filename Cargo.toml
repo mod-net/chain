@@ -8,7 +8,7 @@ edition = "2021"
 [workspace]
 members = [
     "node",
-    "pallets/bridge",
+    "pallets/bridge", "pallets/module-payments",
     "pallets/modules",
     "runtime",
 ]
