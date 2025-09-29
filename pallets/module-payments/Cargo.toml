@@ -1,5 +1,5 @@
 [package]
-name = "module-payments"
+name = "pallet-module-payments"
 version = "0.1.0"
 description = "A Substrate pallet for handling payments from an Authorized Module, presumably the Telemetry Module"
 license.workspace = true
@@ -27,7 +27,7 @@ sp-core = { default-features = true, workspace = true }
 sp-io = { default-features = true, workspace = true }
 sp-runtime = { default-features = true, workspace = true }
 sp-std = { default-features = true, workspace = true }
-pallet-balances = { workspace = true, default-features = true, features = ["std"] }
+pallet-balances = { workspace = true, default-features = true }
 
 [features]
 default = ["std"]

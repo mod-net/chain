@@ -40,7 +40,7 @@ use sp_version::RuntimeVersion;
 
 // Local module imports
 use super::{
-    AccountId, Aura, Balance, Balances, Block, BlockNumber, Hash, Nonce, PalletInfo, Runtime,
+    AccountId, Aura, Balance, Balances, Block, BlockNumber, Hash, Modules, Nonce, PalletInfo, Runtime,
     RuntimeCall, RuntimeEvent, RuntimeFreezeReason, RuntimeHoldReason, RuntimeOrigin, RuntimeTask,
     System, EXISTENTIAL_DEPOSIT, SLOT_DURATION, VERSION,
 };
@@ -217,4 +217,15 @@ impl pallet_modules::Config for Runtime {
     type MaxURLLength = ConstU32<128>;
     /// Default Module Registration Cost
     type DefaultModuleCollateral = ConstU128<5_000_000_000>;
+}
+
+parameter_types! {
+    pub const DefaultModulePaymentFee: Percent = Percent::from_percent(2);
+}
+
+impl pallet_module_payments::Config for Runtime {
+    type Currency = Balances;
+    type Modules = Runtime;
+
+    type DefaultModulePaymentFee = DefaultModulePaymentFee;
 }

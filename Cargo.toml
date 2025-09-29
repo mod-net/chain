@@ -34,6 +34,7 @@ pallet-balances = { version = "42.0.0", default-features = false }
 pallet-bridge = { path = "./pallets/bridge", default-features = false }
 pallet-grandpa = { version = "41.0.0", default-features = false }
 pallet-modules = { path = "./pallets/modules", default-features = false }
+pallet-module-payments = { path = "./pallets/module-payments", default-features = false }
 pallet-multisig = { version = "41.0.0", default-features = false }
 pallet-staking = { version = "41.0.0", default-features = false }
 pallet-sudo = { version = "41.0.0", default-features = false }

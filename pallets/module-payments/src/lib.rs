@@ -20,7 +20,7 @@ mod tests;
 mod benchmarking;
 
 pub mod weights;
-pub use weights::*;
+// pub use weights::*;
 
 pub(crate) use ext::*;
 use frame_support::traits::{
@@ -32,9 +32,10 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub mod pallet {
     use super::*;
     use frame_support::{
-        dispatch::DispatchResult, pallet_prelude::*, sp_runtime::Percent, traits::ConstU64,
+		dispatch::DispatchResult, ensure, pallet_prelude::*, sp_runtime::Percent, traits::ConstU64,
     };
     use frame_system::{ensure_signed, pallet_prelude::*};
+    use sp_std::vec::Vec;
     extern crate alloc;
 
     #[pallet::pallet]
@@ -62,10 +63,51 @@ pub mod pallet {
     }
 
     #[pallet::error]
-    pub enum Error<T> {}
+    pub enum Error<T> {
+        NotAuthorizedModule,
+		LengthMismatch,
+    }
 
     #[pallet::storage]
     pub type AuthorizedModule<T: Config> = StorageValue<_, u64, ValueQuery, ConstU64<0>>;
+
+    #[pallet::storage]
+    pub type ModuleUsageWeights<T: Config> = StorageMap<_, Identity, u64, u16>;
+
+    #[pallet::storage]
+    pub type ModulePaymentFee<T: Config> =
+        StorageValue<_, Percent, ValueQuery, T::DefaultModulePaymentFee>;
+
+    pub fn ensure_authorized_module<T: crate::Config>(origin: OriginFor<T>) -> Result<(), frame_support::sp_runtime::DispatchError> {
+        let caller = ensure_signed(origin)?;
+        let authorized_module_id = crate::AuthorizedModule::<T>::get();
+        let authorized_module = pallet_modules::Modules::<T::Modules>::get(authorized_module_id)
+            .ok_or(pallet_modules::Error::<T::Modules>::ModuleNotFound)?;
+        let authorized = authorized_module.owner == caller;
+        if authorized {
+            Ok(())
+        } else {
+            Err(crate::Error::<T>::NotAuthorizedModule.into())
+        }
+    }
+
+    /// Normalizes weights of [u16]
+    pub fn normalize_weights(weights: &[u16]) -> Vec<u16> {
+		let sum: u64 = weights.iter().map(|&x| u64::from(x)).sum();
+        if sum == 0 {
+            return weights.to_vec();
+        }
+        weights
+            .iter()
+            .map(|&x| {
+                u64::from(x)
+                    .checked_mul(u64::from(u16::MAX))
+                    .and_then(|product| product.checked_div(sum))
+                    .and_then(|result| result.try_into().ok())
+                    .unwrap_or(0)
+            })
+            .collect()
+    }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -87,6 +129,45 @@ pub mod pallet {
             } else {
                 Err(pallet_modules::Error::<T::Modules>::ModuleNotFound.into())
             }
+        }
+
+        #[pallet::call_index(1)]
+        #[pallet::weight({0})]
+        pub fn set_module_weights(
+            origin: OriginFor<T>,
+            module_ids: Vec<u16>,
+            weights: Vec<u16>,
+        ) -> DispatchResult {
+            ensure_authorized_module::<T>(origin)?;
+
+			ensure!(module_ids.len() == weights.len(), Error::<T>::LengthMismatch);
+
+			let normalized_values = normalize_weights(&weights);
+			let desired_pairs: Vec<(u64, u16)> = module_ids
+				.into_iter()
+				.map(|id| id as u64)
+				.zip(normalized_values.into_iter())
+				.collect();
+
+			// Build set of desired keys for pruning
+			let desired_keys: sp_std::collections::btree_set::BTreeSet<u64> = desired_pairs
+				.iter()
+				.map(|(k, _)| *k)
+				.collect();
+
+			// Remove any existing entries that are no longer desired
+			for existing_key in crate::ModuleUsageWeights::<T>::iter_keys() {
+				if !desired_keys.contains(&existing_key) {
+					crate::ModuleUsageWeights::<T>::remove(existing_key);
+				}
+			}
+
+			// Insert/update desired pairs
+			for (id, weight) in desired_pairs {
+				crate::ModuleUsageWeights::<T>::insert(id, weight);
+			}
+
+			Ok(())
         }
     }
 }

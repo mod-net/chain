@@ -5535,6 +5535,7 @@ dependencies = [
  "pallet-balances",
  "pallet-bridge",
  "pallet-grandpa",
+ "pallet-module-payments",
  "pallet-modules",
  "pallet-multisig",
  "pallet-sudo",
@@ -5560,23 +5561,6 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
-]
-
-[[package]]
-name = "module-payments"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-balances",
- "pallet-modules",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -6281,6 +6265,23 @@ dependencies = [
  "polkadot-sdk-frame",
  "scale-info",
  "sp-mmr-primitives",
+]
+
+[[package]]
+name = "pallet-module-payments"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-modules",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

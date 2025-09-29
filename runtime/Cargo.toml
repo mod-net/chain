@@ -29,6 +29,7 @@ pallet-utility.workspace = true
 pallet-multisig.workspace = true
 pallet-sudo.workspace = true
 pallet-modules.workspace = true
+pallet-module-payments.workspace = true
 pallet-timestamp.workspace = true
 pallet-bridge.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
@@ -72,9 +73,9 @@ std = [
 	"pallet-multisig/std",
 	"pallet-sudo/std",
 	"pallet-modules/std",
+	"pallet-module-payments/std",
 	"pallet-timestamp/std",
 	"pallet-bridge/std",
-	"pallet-utility/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"scale-info/std",
@@ -104,6 +105,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-modules/runtime-benchmarks",
+	"pallet-module-payments/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
@@ -118,6 +120,7 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-modules/try-runtime",
+	"pallet-module-payments/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-transaction-payment/try-runtime",

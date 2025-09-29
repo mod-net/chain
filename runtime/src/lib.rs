@@ -236,4 +236,7 @@ mod runtime {
 
     #[runtime::pallet_index(10)]
     pub type Modules = pallet_modules;
+
+    #[runtime::pallet_index(11)]
+    pub type ModulePayments = pallet_module_payments;
 }
