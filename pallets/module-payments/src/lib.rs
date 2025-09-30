@@ -11,7 +11,7 @@ mod ext;
 pub use pallet::*;
 
 #[cfg(test)]
-mod mock;
+pub mod mock;
 
 #[cfg(test)]
 mod tests;
@@ -20,7 +20,7 @@ mod tests;
 mod benchmarking;
 
 pub mod weights;
-// pub use weights::*;
+pub use weights::*;
 
 pub(crate) use ext::*;
 use frame_support::traits::{
@@ -43,7 +43,8 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        // type WeightInfo: WeightInfo;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type WeightInfo: WeightInfo;
         type Currency: Currency<Self::AccountId, Balance = u128>
             + LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>>
             + InspectLockableCurrency<Self::AccountId>
@@ -112,7 +113,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
-        #[pallet::weight({0})]
+        #[pallet::weight(T::WeightInfo::set_authorized_module())]
         pub fn set_authorized_module(origin: OriginFor<T>, module_id: u64) -> DispatchResult {
             ensure_root(origin)?;
 

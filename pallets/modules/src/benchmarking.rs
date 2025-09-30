@@ -5,7 +5,7 @@ use super::*;
 use frame_support::BoundedVec;
 
 #[allow(unused)]
-use crate::Pallet as ModulesPallet;
+pub use crate::Pallet as ModulesPallet;
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
 
@@ -16,7 +16,10 @@ mod benchmarks {
     #[benchmark]
     fn register_module() {
         let caller: T::AccountId = whitelisted_caller();
-        // let name = b"Test Module".to_vec();
+        drop(<T as crate::Config>::Currency::deposit_creating(
+            &caller,
+            1_000_000_000_000_000,
+        ));
 
         #[extrinsic_call]
         register_module(
@@ -33,6 +36,10 @@ mod benchmarks {
     #[benchmark]
     fn update_module() {
         let caller: T::AccountId = whitelisted_caller();
+        drop(<T as crate::Config>::Currency::deposit_creating(
+            &caller,
+            1_000_000_000_000_000,
+        ));
 
         // First register a module
         let _ = ModulesPallet::<T>::register_module(
@@ -60,6 +67,10 @@ mod benchmarks {
     #[benchmark]
     fn remove_module() {
         let caller: T::AccountId = whitelisted_caller();
+        drop(<T as crate::Config>::Currency::deposit_creating(
+            &caller,
+            1_000_000_000_000_000,
+        ));
 
         // First register a module
         let _ = ModulesPallet::<T>::register_module(

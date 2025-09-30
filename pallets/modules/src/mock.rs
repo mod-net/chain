@@ -86,6 +86,7 @@ parameter_types! {
 }
 
 impl pallet_modules::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = ();
 

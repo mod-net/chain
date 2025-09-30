@@ -42,6 +42,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// A type representing the weights required by the extrinsics of this pallet.
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type WeightInfo: WeightInfo;
         type Currency: Currency<Self::AccountId, Balance = u128>
             + LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>>
@@ -179,7 +180,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
-        #[pallet::weight({0})]
+        #[pallet::weight(T::WeightInfo::register_module())]
         pub fn register_module(
             origin: OriginFor<T>,
             name: module::ModuleName<T>,
@@ -192,7 +193,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(1)]
-        #[pallet::weight({0})]
+        #[pallet::weight(T::WeightInfo::remove_module())]
         pub fn remove_module(
             origin: OriginFor<T>,
             id: u64,
@@ -202,7 +203,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(2)]
-        #[pallet::weight({0})]
+        #[pallet::weight(T::WeightInfo::update_module())]
         pub fn update_module(
             origin: OriginFor<T>,
             id: u64,

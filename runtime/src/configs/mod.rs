@@ -40,7 +40,7 @@ use sp_version::RuntimeVersion;
 
 // Local module imports
 use super::{
-    AccountId, Aura, Balance, Balances, Block, BlockNumber, Hash, Modules, Nonce, PalletInfo, Runtime,
+    AccountId, Aura, Balance, Balances, Block, BlockNumber, Hash, Nonce, PalletInfo, Runtime,
     RuntimeCall, RuntimeEvent, RuntimeFreezeReason, RuntimeHoldReason, RuntimeOrigin, RuntimeTask,
     System, EXISTENTIAL_DEPOSIT, SLOT_DURATION, VERSION,
 };
@@ -62,6 +62,7 @@ parameter_types! {
 
 // Bridge pallet configuration
 impl pallet_bridge::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
 }
 
@@ -200,6 +201,7 @@ parameter_types! {
 
 /// Configure the Modules pallet for real blockchain transactions.
 impl pallet_modules::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = pallet_modules::weights::SubstrateWeight<Runtime>;
 
@@ -224,6 +226,8 @@ parameter_types! {
 }
 
 impl pallet_module_payments::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
     type Currency = Balances;
     type Modules = Runtime;
 
