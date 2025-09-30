@@ -6,7 +6,6 @@ use frame_support::BoundedVec;
 
 #[allow(unused)]
 use crate::Pallet as ModulePayments;
-use pallet_modules::Pallet as ModulesPallet;
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
 
@@ -30,13 +29,6 @@ mod benchmarks {
           last_updated: 0,
         };
         pallet_modules::Modules::insert(0, module);
-        // let _ = ModulesPallet::<T::Modules>::register_module(
-        //     RawOrigin::Signed(caller).into(),
-        //     BoundedVec::try_from("Test Module".as_bytes().to_vec()).expect("too long"),
-        //     None,
-        //     None,
-        //     None
-        // );
 
         #[extrinsic_call]
         ModulePayments::set_authorized_module(RawOrigin::Root, 0u64);
