@@ -149,6 +149,10 @@ pub mod pallet {
             /// The ID of the module
             id: u64,
         },
+        ModuleTierChanged {
+            id: u64,
+            tier: module::ModuleTier,
+        },
     }
 
     /// Errors that can be returned by this pallet.
@@ -214,6 +218,19 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             module::update::<T>(who, id, name, data, url, take)
+        }
+
+        // TODO: link into voting mechanisms that check for prev usage
+        /// Changes the module tier to the specified tier
+        #[pallet::call_index(3)]
+        #[pallet::weight({0})]
+        pub fn change_module_tier(
+            origin: OriginFor<T>,
+            id: u64,
+            tier: module::ModuleTier,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+            module::change_tier::<T>(id, tier)
         }
     }
 }
