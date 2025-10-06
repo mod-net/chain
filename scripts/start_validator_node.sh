@@ -2,12 +2,16 @@
 set -euo pipefail
 
 # Config
-CHAIN_PATH="$HOME/mod-net/modsdk/chain"
-SCRIPT_PATH="$CHAIN_PATH/scripts"
-NODE_PATH="${CHAIN_PATH}/target/release/modnet-node"
-INSERT_KEYS_SCRIPT="${INSERT_KEYS_SCRIPT:-$SCRIPT_PATH/insert_session_keys.py}"
-LOG_DIR="${LOG_DIR:-$HOME/.modnet/logs}"
-RPC_HOST="127.0.0.1"
+
+# Allow overrides from MODNET_* envs
+# Log directory: use canonical MODNET var only
+LOG_DIR="${MODNET_LOG_DIR:-$MODNET_CHAIN_DIR/logs}"
+
+# Chain spec path: prefer MODNET_SPEC, else default to specs under CHAIN_PATH
+CHAIN_SPEC="${MODNET_SPEC:-$MODNET_CHAIN_PATH/specs/modnet-testnet-raw.json}"
+
+# RPC host (fixed local unless we allow override later)
+RPC_HOST="${MODNET_RPC_HOST:-127.0.0.1}"
 
 mkdir -p "$LOG_DIR"
 
@@ -33,7 +37,7 @@ wait_for_rpc() {
 
 # Try to load a bootnode multiaddr from specs/boot_nodes.json for this node NAME
 load_bootnode_from_specs() {
-  local bn_file="$CHAIN_PATH/specs/boot_nodes.json"
+  local bn_file="$MODNET_CHAIN_PATH/specs/boot_nodes.json"
   local added=0
   if [[ -f "$bn_file" ]]; then
     if command -v jq >/dev/null 2>&1; then
@@ -80,8 +84,8 @@ PY
 # Obtain or generate a libp2p node key (ed25519 secret) for --node-key
 get_or_generate_node_key() {
   # Respect environment override if provided
-  if [[ -n "${NODE_LIBP2P_KEY:-}" ]]; then
-    echo "Using NODE_LIBP2P_KEY from environment"
+  if [[ -n "${MODNET_KEY_LIBP2P:-}" ]]; then
+    echo "Using MODNET_KEY_LIBP2P from environment"
     return 0
   fi
   read -p "Generate a persistent libp2p node key for '$NAME'? (y/n): " gen_nodekey
@@ -106,23 +110,23 @@ get_or_generate_node_key() {
   local key_file="$key_dir/nodekey-${NAME}.hex"
   printf '%s\n' "$key_hex" >"$key_file"
   chmod 600 "$key_file" || true
-  export NODE_LIBP2P_KEY="$key_hex"
+  export MODNET_KEY_LIBP2P="$key_hex"
   echo "Saved libp2p node key to $key_file and will pass via --node-key."
   return 0
 }
-if [[ -z "$NODE_PATH" || ! -x "$NODE_PATH" ]]; then
-  echo "ERROR: NODE_PATH not set or not executable: $NODE_PATH" >&2
+if [[ -z "$MODNET_NODE_PATH" || ! -x "$MODNET_NODE_PATH" ]]; then
+  echo "ERROR: MODNET_NODE_PATH not set or not executable: $MODNET_NODE_PATH" >&2
   exit 1
 fi
 
 read -rp "Node type (validator, full, archive): " NODE_TYPE
 read -rp "Node number: " NODE_NUMBER
 
-bash "$SCRIPT_PATH/setup_ngrok.sh" "$NODE_TYPE" "$NODE_NUMBER"
+bash "$MODNET_SCRIPT_PATH/setup_ngrok.sh" "$NODE_TYPE" "$NODE_NUMBER"
 
 NAME="${NODE_TYPE}-${NODE_NUMBER}"
 # Ensure base-path subdirectories exist so the node can write its network key if needed
-mkdir -p "$HOME/.modnet/data/chains/modnet-testnet/network"
+mkdir -p "${MODNET_CHAIN_DIR:-$HOME/.modnet}/data/chains/${MODNET_CHAIN_NAME:-modnet}-testnet/network"
 
 RPC_PORT=""
 P2P_PORT=""
@@ -159,7 +163,7 @@ LOG_FILE="${LOG_DIR}/${NAME}.log"
 # Optionally generate keys before sourcing
 read -p "Generate keys now for '$NAME'? (y/n): " gen_now
 if [[ "$gen_now" == "y" ]]; then
-  bash "$SCRIPT_PATH/generate_keys.sh" --name "$NAME"
+  bash "$MODNET_SCRIPT_PATH/generate_keys.sh" --name "$NAME"
 fi
 
 # Optionally use PM2 to run the node
@@ -167,23 +171,42 @@ read -p "Run node under PM2? (y/n): " use_pm2
 
 # load exported key variables from source_keys.sh (AURA/GRANDPA, plus filename-derived)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Ensure source_keys.sh uses the local key_tools.py by default
-export KEY_TOOL_SCRIPT="$SCRIPT_DIR/key_tools.py"
+# Ensure canonical env is set for the loader
+export TARGET_DIR="${MODNET_KEY_DIR:-$HOME/.modnet/keys}"
+export MODNET_KEYS_SCRIPT="${MODNET_KEYS_SCRIPT:-$MODNET_SCRIPT_PATH/key_tools.py}"
+# Source keys helper
 source "$SCRIPT_DIR/source_keys.sh"
 
-# Decide node libp2p key only if explicitly provided by environment
-NODE_LIBP2P_KEY="${NODE_LIBP2P_KEY:-}"
-if [[ -z "$NODE_LIBP2P_KEY" ]]; then
-  echo "INFO: NODE_LIBP2P_KEY not set; starting without --node-key."
+# Decide node libp2p key from canonical MODNET var only
+# Support MODNET_KEY_LIBP2P as file path (preferred) or direct hex string
+if [[ -n "${MODNET_KEY_LIBP2P:-}" ]]; then
+  if [[ -f "$MODNET_KEY_LIBP2P" ]]; then
+    KEY_LIBP2P="$(tr -d '\n\r\t ' < "$MODNET_KEY_LIBP2P" || true)"
+  else
+    KEY_LIBP2P="$MODNET_KEY_LIBP2P"
+  fi
+else
+  KEY_LIBP2P=""
+fi
+if [[ -z "$KEY_LIBP2P" ]]; then
+  echo "INFO: KEY_LIBP2P not set; starting without --node-key."
 fi
 
 # Give a chance to generate/pick a libp2p node key to avoid NetworkKeyNotFound
 get_or_generate_node_key || true
 
+# Map MODNET key paths to expected variables for key insertion flow
+if [[ -n "${MODNET_KEY_AURA:-}" ]]; then
+  export KEY_AURA_PATH="$MODNET_KEY_AURA"
+fi
+if [[ -n "${MODNET_KEY_GRANDPA:-}" ]]; then
+  export KEY_GRANDPA_PATH="$MODNET_KEY_GRANDPA"
+fi
+
 # Build node args (unsafe flags for validator)
-NODE_ARGS=(--chain $CHAIN_PATH/specs/modnet-testnet-raw.json --name "$NAME" --listen-addr "/ip4/0.0.0.0/tcp/${P2P_PORT}" --rpc-cors all --rpc-port "$RPC_PORT" --base-path "$HOME/.modnet/data" --prometheus-external --prometheus-port "$PROM_PORT")
-if [[ -n "$NODE_LIBP2P_KEY" ]]; then
-  NODE_ARGS+=(--node-key "$NODE_LIBP2P_KEY")
+NODE_ARGS=(--chain "$CHAIN_SPEC" --name "$NAME" --listen-addr "/ip4/0.0.0.0/tcp/${P2P_PORT}" --rpc-cors all --rpc-port "$RPC_PORT" --base-path "$MODNET_CHAIN_DIR/data" --prometheus-external --prometheus-port "$PROM_PORT")
+if [[ -n "$KEY_LIBP2P" ]]; then
+  NODE_ARGS+=(--node-key "$KEY_LIBP2P")
 fi
 
 # Telemetry selection
@@ -229,11 +252,11 @@ fi
 if [[ "$use_pm2" == "y" ]]; then
   echo "Starting node with PM2 (log -> $LOG_FILE)"
   # Start under PM2; use -- to pass args to the binary. Use same file for both out/err.
-  pm2 start "$NODE_PATH" --name "$NAME" --output "$LOG_FILE" --error "$LOG_FILE" -- "${NODE_ARGS[@]}"
+  pm2 start "$MODNET_NODE_PATH" --name "$NAME" --output "$LOG_FILE" --error "$LOG_FILE" -- "${NODE_ARGS[@]}"
   echo "Node started under PM2 as '$NAME'. Waiting for RPC at $RPC_URL ..."
 else
   echo "Starting node in background (log -> $LOG_FILE)"
-  "$NODE_PATH" "${NODE_ARGS[@]}" >"$LOG_FILE" 2>&1 &
+  "$MODNET_NODE_PATH" "${NODE_ARGS[@]}" >"$LOG_FILE" 2>&1 &
   NODE_PID=$!
   echo "Node started with PID $NODE_PID. Waiting for RPC at $RPC_URL ..."
 fi
@@ -268,7 +291,7 @@ if [[ "$NODE_TYPE" == "validator" ]]; then
 
     echo "Inserting session keys. You will be prompted for the key password(s)."
     # Run insert script interactively, reading prompt from your terminal so you can type passphrase
-    python3 "$INSERT_KEYS_SCRIPT" --rpc "$RPC_URL" --aura-file "$AURA_FILE" --grandpa-file "$GRANDPA_FILE" --prompt < /dev/tty
+    python3 "${MODNET_KEYS_INSERT_SCRIPT:-$MODNET_SCRIPT_PATH/insert_session_keys.py}" --rpc "$RPC_URL" --aura-file "$AURA_FILE" --grandpa-file "$GRANDPA_FILE" --prompt < /dev/tty
 
     echo "Session keys inserted. Now shutting node down and restarting in safe mode."
 
@@ -285,7 +308,7 @@ if [[ "$NODE_TYPE" == "validator" ]]; then
     if [[ "$use_pm2" == "y" ]]; then
       echo "Restarting PM2 process '$NAME' in safe mode (no rpc-external/Unsafe)."
       pm2 delete "$NAME" || true
-      pm2 start "$NODE_PATH" --name "$NAME" --output "$LOG_FILE" --error "$LOG_FILE" -- "${SAFE_ARGS[@]}"
+      pm2 start "$MODNET_NODE_PATH" --name "$NAME" --output "$LOG_FILE" --error "$LOG_FILE" -- "${SAFE_ARGS[@]}"
     else
       echo "Session keys inserted. Now shutting node down and restarting in safe mode."
       # shutdown node (non-PM2)
@@ -295,7 +318,7 @@ if [[ "$NODE_TYPE" == "validator" ]]; then
       # small pause to let ports free
       sleep 2
       echo "Starting node in safe mode (no rpc-external, no Unsafe RPC methods). Log -> $LOG_FILE"
-      "$NODE_PATH" "${SAFE_ARGS[@]}" >"$LOG_FILE" 2>&1 &
+      "$MODNET_NODE_PATH" "${SAFE_ARGS[@]}" >"$LOG_FILE" 2>&1 &
       NODE_PID=$!
       echo "Safe node started with PID $NODE_PID (log: $LOG_FILE)."
       # re-arm cleanup for this run

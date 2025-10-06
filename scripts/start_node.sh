@@ -1,7 +1,6 @@
 #! /usr/bin/env bash
 set -e
 
-NODE_PATH="$(pwd)/target/release/modnet-node"
-$NODE_PATH \
-  --chain ./specs/modnet-testnet-raw.json \
-  --base-path ~/.modnet/data
+$MODNET_NODE_PATH \
+  --chain "$MODNET_SPEC" \
+  --base-path "$MODNET_CHAIN_DIR/data"

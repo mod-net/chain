@@ -4,8 +4,9 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   set -euo pipefail
 fi
 
-target_dir="${TARGET_DIR:-$HOME/.modnet/keys}"
-script_path="${KEY_TOOL_SCRIPT:-$HOME/setup/scripts/key_tools.py}"
+target_dir="${TARGET_DIR:-${MODNET_KEY_DIR:-$HOME/.modnet/keys}}"
+# Use canonical MODNET_KEYS_SCRIPT for key tool path, with sensible fallback
+script_path="${MODNET_KEYS_SCRIPT:-$HOME/setup/scripts/key_tools.py}"
 
 # When executed directly, set a trap to restore terminal state. Avoid altering caller's traps when sourced.
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
