@@ -10,19 +10,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Single source of truth for key tool path: MODNET_KEYS_SCRIPT (fallback to local key_tools.py)
 KEY_TOOL="${MODNET_KEYS_SCRIPT:-$SCRIPT_DIR/key_tools.py}"
-
-# Ensure required tools are available (no auto-install side effects)
-if ! command -v clang >/dev/null 2>&1; then
-  echo "ERROR: 'clang' is required but not found on PATH. Please install clang." >&2
-  exit 1
-fi
-if ! command -v subkey >/dev/null 2>&1; then
-  echo "ERROR: 'subkey' is required but not found on PATH. Install with: cargo install subkey" >&2
-  exit 1
-fi
-
-# Ensure key output directory exists if specified via canonical env
-mkdir -p "${MODNET_KEY_DIR:-$HOME/.modnet/keys}" >/dev/null 2>&1 || true
+sudo apt-get install clang
+cargo install subkey 
 
 if [[ ! -f "$KEY_TOOL" ]]; then
   echo "ERROR: key tool not found at: $KEY_TOOL" >&2
