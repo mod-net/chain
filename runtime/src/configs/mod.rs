@@ -219,7 +219,7 @@ impl pallet_modules::Config for Runtime {
 }
 
 parameter_types! {
-    pub const DefaultModulePaymentFee: Percent = Percent::from_percent(2);
+    pub const DefaultModulePaymentFee: Perbill = Perbill::from_perthousand(25); // 2.5%
     pub const ModnetPaymentsPalletId: PalletId = PalletId(*b"modnet00");
 }
 
@@ -232,4 +232,5 @@ impl pallet_module_payments::Config for Runtime {
     type PalletId = ModnetPaymentsPalletId;
 
     type DefaultModulePaymentFee = DefaultModulePaymentFee;
+    type DefaultPaymentDistributionPeriod = ConstU64<25>;
 }

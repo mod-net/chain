@@ -6,7 +6,7 @@ use frame_support::{
     PalletId,
 };
 use sp_core::H256;
-use sp_runtime::{ BuildStorage, Percent, traits::{ BlakeTwo256, IdentityLookup } };
+use sp_runtime::{ BuildStorage, Perbill, Percent, traits::{ BlakeTwo256, IdentityLookup } };
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -102,7 +102,7 @@ impl pallet_modules::Config for Test {
 }
 
 parameter_types! {
-    pub const DefaultModulePaymentFee: Percent = Percent::from_percent(2);
+    pub const DefaultModulePaymentFee: Perbill = Perbill::from_perthousand(25); // 2.5%
 }
 
 pub const MODNET_PAYMENTS_PALLET_ID: PalletId = PalletId(*b"modnet00");
@@ -122,6 +122,7 @@ impl pallet_module_payments::Config for Test {
     type PalletId = ModnetPaymentsPalletId;
 
     type DefaultModulePaymentFee = DefaultModulePaymentFee;
+    type DefaultPaymentDistributionPeriod = ConstU64<25>;
 }
 
 // Build genesis storage according to the mock runtime.

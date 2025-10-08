@@ -8,7 +8,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod ext;
+mod payment_report;
 pub use pallet::*;
+pub use payment_report::*;
 
 #[cfg(test)]
 pub mod mock;
@@ -35,12 +37,12 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub mod pallet {
     use super::*;
     use frame_support::{
+        PalletId,
         dispatch::DispatchResult,
         ensure,
         pallet_prelude::*,
-        sp_runtime::{ traits::AccountIdConversion, Percent },
+        sp_runtime::{ Perbill, traits::AccountIdConversion },
         traits::ConstU64,
-        PalletId,
     };
     use frame_system::{ ensure_signed, pallet_prelude::* };
     use sp_std::vec::Vec;
@@ -65,7 +67,10 @@ pub mod pallet {
         type PalletId: Get<PalletId>;
 
         #[pallet::constant]
-        type DefaultModulePaymentFee: Get<Percent>;
+        type DefaultModulePaymentFee: Get<Perbill>;
+
+        #[pallet::constant]
+        type DefaultPaymentDistributionPeriod: Get<Block>;
     }
 
     #[pallet::event]
@@ -74,12 +79,20 @@ pub mod pallet {
         AuthorizedModuleSet {
             module_id: u64,
         },
+        ModulePaymentReported {
+            module_id: u64,
+            payee: AccountIdOf<T>,
+            amount: u128,
+            fee: u128,
+        },
     }
 
     #[pallet::error]
     pub enum Error<T> {
         NotAuthorizedModule,
         LengthMismatch,
+        InsufficientFunds,
+        EmptyPayment,
     }
 
     #[pallet::type_value]
@@ -104,9 +117,17 @@ pub mod pallet {
     #[pallet::storage]
     pub type ModulePaymentFee<T: Config> = StorageValue<
         _,
-        Percent,
+        Perbill,
         ValueQuery,
         T::DefaultModulePaymentFee
+    >;
+
+    #[pallet::storage]
+    pub type PaymentDistributionPeriod<T: Config> = StorageValue<
+        _,
+        Block,
+        ValueQuery,
+        T::DefaultPaymentDistributionPeriod
     >;
 
     pub fn ensure_authorized_module<T: crate::Config>(
@@ -211,15 +232,25 @@ pub mod pallet {
 
         #[pallet::call_index(2)]
         #[pallet::weight({ 0 })]
-        pub fn report_payment(
+        pub fn report_payment(origin: OriginFor<T>, payment: PaymentReport<T>) -> DispatchResult {
+            ensure_authorized_module::<T>(origin)?;
+
+            payment.handle()
+        }
+
+        #[pallet::call_index(3)]
+        #[pallet::weight({ 0 })]
+        pub fn report_batch_payments(
             origin: OriginFor<T>,
-            module_id: u64,
-            payee: AccountIdOf<T>,
-            amount: u128
+            payments: Vec<PaymentReport<T>>
         ) -> DispatchResult {
             ensure_authorized_module::<T>(origin)?;
 
-            // TODO: Complete
+            let mut results: Vec<DispatchResult> = Vec::new();
+
+            for payment in payments.iter() {
+                results.push(payment.handle());
+            }
 
             Ok(())
         }
