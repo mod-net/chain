@@ -3,13 +3,13 @@
   "id": "modnet-testnet",
   "chainType": "Live",
   "bootNodes": [
-    "/ip4/70.73.8.64/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG",
-    "/ip4/70.73.8.64/tcp/30332/p2p/12D3KooWCdJb9XGfLDwMEB31uF78T7TgYFKXh9tHhFoeVtnj2F7M",
-    "/ip4/70.73.8.64/tcp/30333/p2p/12D3KooWBo9pQTrgrxiRw9CiBEygNKhjvE5xmm7Vuqx1LF2JWLVA",
-    "/ip4/70.73.8.64/tcp/30334/p2p/12D3KooWDqmp23iJcC8GBPF87ZMhrezHzMwuA1MyoC3dFJbESTAg",
-    "/ip4/70.73.8.64/tcp/30335/p2p/12D3KooWCqTW6ELT4W7i39oGrYQihkSrK7Ahxe2MjpCXdx7SNd9m",
-    "/ip4/70.73.8.64/tcp/30336/p2p/12D3KooWFBU9kdGNcQrZeo9DTF6FbL55GBfjsp9dQ5E552wwvL4E",
-    "/ip4/70.73.8.64/tcp/30337/p2p/12D3KooWGWs3MD7UDGoHUnMLMavkAGNbLkJPTmnW6aHf22XN9Dqa"
+    "/dns/validator-1-comai.ngrok.dev/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG",
+    "/dns/validator-2-comai.ngrok.dev/tcp/30332/p2p/12D3KooWCdJb9XGfLDwMEB31uF78T7TgYFKXh9tHhFoeVtnj2F7M",
+    "/dns/validator-3-comai.ngrok.dev/tcp/30333/p2p/12D3KooWBo9pQTrgrxiRw9CiBEygNKhjvE5xmm7Vuqx1LF2JWLVA",
+    "/dns/full-1-comai.ngrok.dev/tcp/30334/p2p/12D3KooWDqmp23iJcC8GBPF87ZMhrezHzMwuA1MyoC3dFJbESTAg",
+    "/dns/full-2-comai.ngrok.dev/tcp/30335/p2p/12D3KooWCqTW6ELT4W7i39oGrYQihkSrK7Ahxe2MjpCXdx7SNd9m",
+    "/dns/full-3-comai.ngrok.dev/tcp/30336/p2p/12D3KooWFBU9kdGNcQrZeo9DTF6FbL55GBfjsp9dQ5E552wwvL4E",
+    "/dns/archive-1-comai.ngrok.dev/tcp/30337/p2p/12D3KooWGWs3MD7UDGoHUnMLMavkAGNbLkJPTmnW6aHf22XN9Dqa"
   ],
   "telemetryEndpoints": [
     [
