@@ -1,19 +1,44 @@
 #!/bin/bash
 set -euo pipefail
 
-# Config
+# Establish canonical paths and load root .env for defaults
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHAIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$CHAIN_ROOT/.." && pwd)"
+ENV_FILE="$REPO_ROOT/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -o allexport
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +o allexport
+fi
 
-# Allow overrides from MODNET_* envs
-# Log directory: use canonical MODNET var only
-LOG_DIR="${MODNET_LOG_DIR:-$MODNET_CHAIN_DIR/logs}"
+# Canonical defaults matching root .env
+MODNET_CHAIN_DIR="${MODNET_CHAIN_DIR:-$HOME/.modnet}"
+MODNET_CHAIN_NAME="${MODNET_CHAIN_NAME:-modnet}"
+MODNET_CHAIN_PATH="${MODNET_CHAIN_PATH:-$CHAIN_ROOT}"
+if [[ "$MODNET_CHAIN_PATH" != /* ]]; then
+  MODNET_CHAIN_PATH="$REPO_ROOT/$MODNET_CHAIN_PATH"
+fi
+MODNET_SCRIPT_PATH="${MODNET_SCRIPT_PATH:-$MODNET_CHAIN_PATH/scripts}"
+if [[ "$MODNET_SCRIPT_PATH" != /* ]]; then
+  MODNET_SCRIPT_PATH="$REPO_ROOT/$MODNET_SCRIPT_PATH"
+fi
+MODNET_NODE_PATH="${MODNET_NODE_PATH:-$MODNET_CHAIN_PATH/target/release/modnet-node}"
+MODNET_SPEC="${MODNET_SPEC:-$MODNET_CHAIN_PATH/specs/modnet-testnet-raw.json}"
+MODNET_LOG_DIR="${MODNET_LOG_DIR:-$MODNET_CHAIN_DIR/logs}"
+MODNET_RPC_HOST="${MODNET_RPC_HOST:-127.0.0.1}"
+MODNET_KEY_DIR="${MODNET_KEY_DIR:-$MODNET_CHAIN_DIR/keys}"
+MODNET_KEYS_SCRIPT="${MODNET_KEYS_SCRIPT:-$MODNET_SCRIPT_PATH/key_tools.py}"
+MODNET_KEYS_INSERT_SCRIPT="${MODNET_KEYS_INSERT_SCRIPT:-$MODNET_SCRIPT_PATH/insert_session_keys.py}"
 
-# Chain spec path: prefer MODNET_SPEC, else default to specs under CHAIN_PATH
-CHAIN_SPEC="${MODNET_SPEC:-$MODNET_CHAIN_PATH/specs/modnet-testnet-raw.json}"
+LOG_DIR="$MODNET_LOG_DIR"
+CHAIN_SPEC="$MODNET_SPEC"
+RPC_HOST="$MODNET_RPC_HOST"
+BASE_PATH="$MODNET_CHAIN_DIR/data"
 
-# RPC host (fixed local unless we allow override later)
-RPC_HOST="${MODNET_RPC_HOST:-127.0.0.1}"
-
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$BASE_PATH"
+mkdir -p "$MODNET_KEY_DIR"
 
 
 wait_for_rpc() {
@@ -81,11 +106,47 @@ PY
   fi
   return 1
 }
+
+resolve_libp2p_key() {
+  KEY_LIBP2P=""
+  local value="${MODNET_KEY_LIBP2P:-}"
+  if [[ -z "$value" ]]; then
+    return 1
+  fi
+
+  if [[ -f "$value" ]]; then
+    KEY_LIBP2P="$(tr -d '\n\r\t ' < "$value" || true)"
+  else
+    local hex="$value"
+    if [[ "$hex" == 0x* || "$hex" == 0X* ]]; then
+      hex="${hex:2}"
+    fi
+    if [[ "$hex" =~ ^[0-9a-fA-F]{64}$ ]]; then
+      KEY_LIBP2P="$hex"
+    else
+      echo "ERROR: MODNET_KEY_LIBP2P must be a path to a node key file or a 32-byte hex string." >&2
+      return 2
+    fi
+  fi
+
+  if [[ -z "$KEY_LIBP2P" ]]; then
+    echo "ERROR: Resolved libp2p node key is empty." >&2
+    return 2
+  fi
+
+  return 0
+}
+
 # Obtain or generate a libp2p node key (ed25519 secret) for --node-key
 get_or_generate_node_key() {
   # Respect environment override if provided
   if [[ -n "${MODNET_KEY_LIBP2P:-}" ]]; then
+    if ! resolve_libp2p_key; then
+      echo "ERROR: MODNET_KEY_LIBP2P is invalid. Please check the value." >&2
+      exit 1
+    fi
     echo "Using MODNET_KEY_LIBP2P from environment"
+{{ ... }}
     return 0
   fi
   read -p "Generate a persistent libp2p node key for '$NAME'? (y/n): " gen_nodekey
@@ -105,12 +166,12 @@ get_or_generate_node_key() {
   # subkey prints the key hex; trim whitespace just in case
   key_hex="$(printf '%s' "$key_hex" | tr -d '[:space:]')"
   # Persist for reuse
-  local key_dir="$HOME/.modnet/keys"
+  local key_dir="$MODNET_KEY_DIR"
   mkdir -p "$key_dir"
   local key_file="$key_dir/nodekey-${NAME}.hex"
   printf '%s\n' "$key_hex" >"$key_file"
   chmod 600 "$key_file" || true
-  export MODNET_KEY_LIBP2P="$key_hex"
+  export MODNET_KEY_LIBP2P="$key_file"
   echo "Saved libp2p node key to $key_file and will pass via --node-key."
   return 0
 }
@@ -172,28 +233,20 @@ read -p "Run node under PM2? (y/n): " use_pm2
 # load exported key variables from source_keys.sh (AURA/GRANDPA, plus filename-derived)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Ensure canonical env is set for the loader
-export TARGET_DIR="${MODNET_KEY_DIR:-$HOME/.modnet/keys}"
-export MODNET_KEYS_SCRIPT="${MODNET_KEYS_SCRIPT:-$MODNET_SCRIPT_PATH/key_tools.py}"
+export TARGET_DIR="$MODNET_KEY_DIR"
+export MODNET_KEYS_SCRIPT="$MODNET_KEYS_SCRIPT"
 # Source keys helper
 source "$SCRIPT_DIR/source_keys.sh"
 
-# Decide node libp2p key from canonical MODNET var only
-# Support MODNET_KEY_LIBP2P as file path (preferred) or direct hex string
-if [[ -n "${MODNET_KEY_LIBP2P:-}" ]]; then
-  if [[ -f "$MODNET_KEY_LIBP2P" ]]; then
-    KEY_LIBP2P="$(tr -d '\n\r\t ' < "$MODNET_KEY_LIBP2P" || true)"
-  else
-    KEY_LIBP2P="$MODNET_KEY_LIBP2P"
-  fi
-else
-  KEY_LIBP2P=""
-fi
-if [[ -z "$KEY_LIBP2P" ]]; then
-  echo "INFO: KEY_LIBP2P not set; starting without --node-key."
+if ! resolve_libp2p_key; then
+  echo "INFO: MODNET_KEY_LIBP2P not set; will continue without --node-key unless generated." >&2
 fi
 
 # Give a chance to generate/pick a libp2p node key to avoid NetworkKeyNotFound
 get_or_generate_node_key || true
+
+# Re-resolve in case generation provided a key file or hex
+resolve_libp2p_key || true
 
 # Map MODNET key paths to expected variables for key insertion flow
 if [[ -n "${MODNET_KEY_AURA:-}" ]]; then
@@ -207,6 +260,8 @@ fi
 NODE_ARGS=(--chain "$CHAIN_SPEC" --name "$NAME" --listen-addr "/ip4/0.0.0.0/tcp/${P2P_PORT}" --rpc-cors all --rpc-port "$RPC_PORT" --base-path "$MODNET_CHAIN_DIR/data" --prometheus-external --prometheus-port "$PROM_PORT")
 if [[ -n "$KEY_LIBP2P" ]]; then
   NODE_ARGS+=(--node-key "$KEY_LIBP2P")
+else
+  echo "INFO: Starting without an explicit libp2p --node-key; the node will generate a temporary key." >&2
 fi
 
 # Telemetry selection
