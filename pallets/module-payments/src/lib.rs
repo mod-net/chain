@@ -237,22 +237,5 @@ pub mod pallet {
 
             payment.handle()
         }
-
-        #[pallet::call_index(3)]
-        #[pallet::weight({ 0 })]
-        pub fn report_batch_payments(
-            origin: OriginFor<T>,
-            payments: Vec<PaymentReport<T>>
-        ) -> DispatchResult {
-            ensure_authorized_module::<T>(origin)?;
-
-            let mut results: Vec<DispatchResult> = Vec::new();
-
-            for payment in payments.iter() {
-                results.push(payment.handle());
-            }
-
-            Ok(())
-        }
     }
 }
