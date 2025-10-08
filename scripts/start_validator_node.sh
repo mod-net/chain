@@ -107,6 +107,160 @@ PY
   return 1
 }
 
+to_bool() {
+  case "${1:-}" in
+    y|Y|yes|YES|true|TRUE|1)
+      echo "y"
+      ;;
+    n|N|no|NO|false|FALSE|0)
+      echo "n"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+usage() {
+  cat <<'EOF'
+Usage: start_validator_node.sh [OPTIONS]
+
+Required options (when running non-interactively):
+  --type <validator|full|archive>   Node role. Can also be set via MODNET_NODE_TYPE.
+  --number <index>                  Node number (e.g. 1). Can also be set via MODNET_NODE_NUMBER.
+
+Common automation flags:
+  --pm2 <y|n>                       Run under PM2 (default: prompt or MODNET_RUN_PM2).
+  --unsafe <y|n>                    Launch in unsafe mode to insert session keys.
+  --force-authoring <y|n>           Enable --force-authoring.
+  --telemetry <public|none>         Telemetry mode (public Polkadot or disabled).
+  --generate-keys <y|n>             Run generate_keys.sh before starting.
+  --bootnode <multiaddr>            Add explicit bootnode (repeatable).
+  --ngrok <skip|configure|start>    Control ngrok integration (default: ask).
+  --libp2p <hex|path>               Provide libp2p node key hex or file path.
+  --auto-generate-libp2p <y|n>      Auto-create libp2p key if none provided.
+
+Any option can alternatively be provided via the corresponding MODNET_* environment variable.
+EOF
+}
+
+CLI_NODE_TYPE=""
+CLI_NODE_NUMBER=""
+CLI_RUN_PM2=""
+CLI_UNSAFE_MODE=""
+CLI_FORCE_AUTHORING=""
+CLI_GENERATE_KEYS=""
+CLI_TELEMETRY=""
+CLI_NGROK_MODE=""
+CLI_LIBP2P=""
+CLI_AUTO_LIBP2P=""
+declare -a CLI_BOOTNODES=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --type)
+      [[ $# -ge 2 ]] || { echo "ERROR: --type requires a value" >&2; usage; exit 1; }
+      CLI_NODE_TYPE="$2"
+      shift 2
+      ;;
+    --number)
+      [[ $# -ge 2 ]] || { echo "ERROR: --number requires a value" >&2; usage; exit 1; }
+      CLI_NODE_NUMBER="$2"
+      shift 2
+      ;;
+    --pm2)
+      [[ $# -ge 2 ]] || { echo "ERROR: --pm2 requires a value" >&2; usage; exit 1; }
+      CLI_RUN_PM2="$(to_bool "$2")"
+      if [[ -z "$CLI_RUN_PM2" ]]; then
+        echo "ERROR: --pm2 expects y/n" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --unsafe)
+      [[ $# -ge 2 ]] || { echo "ERROR: --unsafe requires a value" >&2; usage; exit 1; }
+      CLI_UNSAFE_MODE="$(to_bool "$2")"
+      if [[ -z "$CLI_UNSAFE_MODE" ]]; then
+        echo "ERROR: --unsafe expects y/n" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --force-authoring)
+      [[ $# -ge 2 ]] || { echo "ERROR: --force-authoring requires a value" >&2; usage; exit 1; }
+      CLI_FORCE_AUTHORING="$(to_bool "$2")"
+      if [[ -z "$CLI_FORCE_AUTHORING" ]]; then
+        echo "ERROR: --force-authoring expects y/n" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --generate-keys)
+      [[ $# -ge 2 ]] || { echo "ERROR: --generate-keys requires a value" >&2; usage; exit 1; }
+      CLI_GENERATE_KEYS="$(to_bool "$2")"
+      if [[ -z "$CLI_GENERATE_KEYS" ]]; then
+        echo "ERROR: --generate-keys expects y/n" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --telemetry)
+      [[ $# -ge 2 ]] || { echo "ERROR: --telemetry requires a value" >&2; usage; exit 1; }
+      case "$2" in
+        public|none)
+          CLI_TELEMETRY="$2"
+          ;;
+        *)
+          echo "ERROR: --telemetry expects 'public' or 'none'" >&2
+          exit 1
+          ;;
+      esac
+      shift 2
+      ;;
+    --bootnode)
+      [[ $# -ge 2 ]] || { echo "ERROR: --bootnode requires a value" >&2; usage; exit 1; }
+      CLI_BOOTNODES+=("$2")
+      shift 2
+      ;;
+    --ngrok)
+      [[ $# -ge 2 ]] || { echo "ERROR: --ngrok requires a value" >&2; usage; exit 1; }
+      case "$2" in
+        skip|configure|start)
+          CLI_NGROK_MODE="$2"
+          ;;
+        *)
+          echo "ERROR: --ngrok expects skip|configure|start" >&2
+          exit 1
+          ;;
+      esac
+      shift 2
+      ;;
+    --libp2p)
+      [[ $# -ge 2 ]] || { echo "ERROR: --libp2p requires a value" >&2; usage; exit 1; }
+      CLI_LIBP2P="$2"
+      shift 2
+      ;;
+    --auto-generate-libp2p)
+      [[ $# -ge 2 ]] || { echo "ERROR: --auto-generate-libp2p requires a value" >&2; usage; exit 1; }
+      CLI_AUTO_LIBP2P="$(to_bool "$2")"
+      if [[ -z "$CLI_AUTO_LIBP2P" ]]; then
+        echo "ERROR: --auto-generate-libp2p expects y/n" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "ERROR: Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
 resolve_libp2p_key() {
   KEY_LIBP2P=""
   local value="${MODNET_KEY_LIBP2P:-}"
@@ -139,24 +293,29 @@ resolve_libp2p_key() {
 
 # Obtain or generate a libp2p node key (ed25519 secret) for --node-key
 get_or_generate_node_key() {
-  # Respect environment override if provided
+  if [[ -n "${CLI_LIBP2P:-}" ]]; then
+    MODNET_KEY_LIBP2P="$CLI_LIBP2P"
+  fi
+
   if [[ -n "${MODNET_KEY_LIBP2P:-}" ]]; then
     if ! resolve_libp2p_key; then
-      echo "ERROR: MODNET_KEY_LIBP2P is invalid. Please check the value." >&2
+      echo "ERROR: Provided libp2p key is invalid: $MODNET_KEY_LIBP2P" >&2
       exit 1
     fi
-    echo "Using MODNET_KEY_LIBP2P from environment"
-{{ ... }}
+    echo "Using libp2p node key from configuration"
     return 0
   fi
-  read -p "Generate a persistent libp2p node key for '$NAME'? (y/n): " gen_nodekey
-  if [[ "$gen_nodekey" != "y" ]]; then
+
+  local should_generate="$(to_bool "${CLI_AUTO_LIBP2P:-${MODNET_AUTO_GENERATE_LIBP2P:-n}}")"
+  if [[ "$should_generate" != "y" ]]; then
     return 1
   fi
+
   if ! command -v subkey >/dev/null 2>&1; then
     echo "ERROR: 'subkey' is required to generate the node key. Install Substrate subkey tool." >&2
     return 1
   fi
+
   echo "Generating libp2p node key with 'subkey generate-node-key'..."
   local key_hex
   if ! key_hex="$(subkey generate-node-key 2>/dev/null)"; then
@@ -180,10 +339,43 @@ if [[ -z "$MODNET_NODE_PATH" || ! -x "$MODNET_NODE_PATH" ]]; then
   exit 1
 fi
 
-read -rp "Node type (validator, full, archive): " NODE_TYPE
-read -rp "Node number: " NODE_NUMBER
+NODE_TYPE="${CLI_NODE_TYPE:-${MODNET_NODE_TYPE:-}}"
+NODE_NUMBER="${CLI_NODE_NUMBER:-${MODNET_NODE_NUMBER:-}}"
 
-bash "$MODNET_SCRIPT_PATH/setup_ngrok.sh" "$NODE_TYPE" "$NODE_NUMBER"
+if [[ -z "$NODE_TYPE" || -z "$NODE_NUMBER" ]]; then
+  echo "ERROR: Node type and number must be provided via CLI (--type/--number) or environment." >&2
+  usage
+  exit 1
+fi
+
+NODE_TYPE="${NODE_TYPE,,}"
+
+case "$NODE_TYPE" in
+  validator|full|archive)
+    ;;
+  *)
+    echo "ERROR: Invalid node type '$NODE_TYPE'." >&2
+    usage
+    exit 1
+    ;;
+esac
+
+NGROK_MODE="${CLI_NGROK_MODE:-${MODNET_NGROK_MODE:-configure}}"
+
+case "$NGROK_MODE" in
+  configure)
+    bash "$MODNET_SCRIPT_PATH/setup_ngrok.sh" "$NODE_TYPE" "$NODE_NUMBER"
+    ;;
+  start)
+    bash "$MODNET_SCRIPT_PATH/setup_ngrok.sh" "$NODE_TYPE" "$NODE_NUMBER" --auto
+    ;;
+  skip)
+    ;;
+  *)
+    echo "ERROR: Invalid ngrok mode '$NGROK_MODE'." >&2
+    exit 1
+    ;;
+esac
 
 NAME="${NODE_TYPE}-${NODE_NUMBER}"
 # Ensure base-path subdirectories exist so the node can write its network key if needed
@@ -222,20 +414,25 @@ RPC_URL="http://${RPC_HOST}:${RPC_PORT}"
 LOG_FILE="${LOG_DIR}/${NAME}.log"
 
 # Optionally generate keys before sourcing
-read -p "Generate keys now for '$NAME'? (y/n): " gen_now
-if [[ "$gen_now" == "y" ]]; then
+GENERATE_KEYS="$(to_bool "${CLI_GENERATE_KEYS:-${MODNET_GENERATE_KEYS:-n}}")"
+if [[ "$GENERATE_KEYS" == "y" ]]; then
   bash "$MODNET_SCRIPT_PATH/generate_keys.sh" --name "$NAME"
 fi
 
-# Optionally use PM2 to run the node
-read -p "Run node under PM2? (y/n): " use_pm2
+USE_PM2="${CLI_RUN_PM2:-${MODNET_RUN_PM2:-}}"
+if [[ -z "$USE_PM2" ]]; then
+  USE_PM2="$(to_bool "${MODNET_RUN_PM2:-n}")"
+fi
+
+if [[ -z "$USE_PM2" ]]; then
+  echo "ERROR: Unable to determine PM2 usage. Set --pm2 y|n or MODNET_RUN_PM2." >&2
+  exit 1
+fi
 
 # load exported key variables from source_keys.sh (AURA/GRANDPA, plus filename-derived)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Ensure canonical env is set for the loader
 export TARGET_DIR="$MODNET_KEY_DIR"
 export MODNET_KEYS_SCRIPT="$MODNET_KEYS_SCRIPT"
-# Source keys helper
 source "$SCRIPT_DIR/source_keys.sh"
 
 if ! resolve_libp2p_key; then
@@ -265,46 +462,48 @@ else
 fi
 
 # Telemetry selection
-read -p "Use public Polkadot telemetry? (y/n): " use_public_telemetry
-if [[ "$use_public_telemetry" == "y" ]]; then
-  NODE_ARGS+=(--telemetry-url "wss://telemetry.polkadot.io/submit 0")
-else
-  NODE_ARGS+=(--no-telemetry)
-fi
+TELEMETRY_MODE="${CLI_TELEMETRY:-${MODNET_TELEMETRY_MODE:-public}}"
+case "$TELEMETRY_MODE" in
+  public)
+    NODE_ARGS+=(--telemetry-url "wss://telemetry.polkadot.io/submit 0")
+    ;;
+  none)
+    NODE_ARGS+=(--no-telemetry)
+    ;;
+  *)
+    echo "ERROR: Unsupported telemetry mode '$TELEMETRY_MODE'" >&2
+    exit 1
+    ;;
+esac
 
 if [[ "$NODE_TYPE" == "validator" ]]; then
-  # Ask if this node should run with --validator flag
-  read -p "Run with --validator role? (y/n): " use_validator_flag
-  if [[ "$use_validator_flag" == "y" ]]; then
-    NODE_ARGS+=(--validator)
-  fi
-  read -p "Run node in unsafe mode? (y/n): " unsafe_mode
-  if [[ "$unsafe_mode" == "y" ]]; then
+  NODE_ARGS+=(--validator)
+  UNSAFE_MODE="$(to_bool "${CLI_UNSAFE_MODE:-${MODNET_UNSAFE_MODE:-n}}")"
+  if [[ "$UNSAFE_MODE" == "y" ]]; then
     NODE_ARGS+=(--rpc-methods Unsafe --rpc-external)
   else
     NODE_ARGS+=(--rpc-methods Safe)
   fi
+else
+  UNSAFE_MODE="n"
 fi
 
 # Optional bootnode
 if ! load_bootnode_from_specs; then
-  read -p "Add a bootnode multiaddr? (y/n): " add_bootnode
-  if [[ "$add_bootnode" == "y" ]]; then
-    read -rp "Enter bootnode multiaddr (e.g., /ip4/1.2.3.4/tcp/30333/p2p/12D3...): " BOOTNODE_ADDR
-    if [[ -n "${BOOTNODE_ADDR// }" ]]; then
-      NODE_ARGS+=(--bootnodes "$BOOTNODE_ADDR")
+  for b in "${CLI_BOOTNODES[@]}" ${MODNET_BOOTNODE_MULTIADDR:-}; do
+    if [[ -n "${b// }" ]]; then
+      NODE_ARGS+=(--bootnodes "$b")
     fi
-  fi
+  done
 fi
 
-# Optional force authoring (useful for single-node local dev)
-read -p "Force authoring (single-node dev)? (y/n): " force_auth
-if [[ "$force_auth" == "y" ]]; then
+# Optional force authoring (useful for single-node dev)
+if [[ "$(to_bool "${CLI_FORCE_AUTHORING:-${MODNET_FORCE_AUTHORING:-n}}")" == "y" ]]; then
   NODE_ARGS+=(--force-authoring)
 fi
 
 # start node
-if [[ "$use_pm2" == "y" ]]; then
+if [[ "$USE_PM2" == "y" ]]; then
   echo "Starting node with PM2 (log -> $LOG_FILE)"
   # Start under PM2; use -- to pass args to the binary. Use same file for both out/err.
   pm2 start "$MODNET_NODE_PATH" --name "$NAME" --output "$LOG_FILE" --error "$LOG_FILE" -- "${NODE_ARGS[@]}"
@@ -316,7 +515,7 @@ else
   echo "Node started with PID $NODE_PID. Waiting for RPC at $RPC_URL ..."
 fi
 
-if [[ "${use_pm2:-n}" != "y" ]]; then
+if [[ "$USE_PM2" != "y" ]]; then
   # ensure we clean up node on interrupt/termination (non-PM2 only)
   cleanup() {
     echo "Shutting down node (PID $NODE_PID) ..."
@@ -335,7 +534,7 @@ echo "Node RPC responsive at $RPC_URL"
 
 # If validator and chosen unsafe mode, insert session keys then restart in safe mode
 if [[ "$NODE_TYPE" == "validator" ]]; then
-  if [[ "${unsafe_mode:-n}" == "y" ]]; then
+  if [[ "$UNSAFE_MODE" == "y" ]]; then
     # Use paths from sourced environment only
     AURA_FILE="${KEY_AURA_PATH:-}"
     GRANDPA_FILE="${KEY_GRANDPA_PATH:-}"
@@ -360,7 +559,7 @@ if [[ "$NODE_TYPE" == "validator" ]]; then
       SAFE_ARGS+=("$a")
     done
 
-    if [[ "$use_pm2" == "y" ]]; then
+    if [[ "$USE_PM2" == "y" ]]; then
       echo "Restarting PM2 process '$NAME' in safe mode (no rpc-external/Unsafe)."
       pm2 delete "$NAME" || true
       pm2 start "$MODNET_NODE_PATH" --name "$NAME" --output "$LOG_FILE" --error "$LOG_FILE" -- "${SAFE_ARGS[@]}"
@@ -384,7 +583,7 @@ if [[ "$NODE_TYPE" == "validator" ]]; then
   fi
 fi
 
-if [[ "$use_pm2" == "y" ]]; then
+if [[ "$USE_PM2" == "y" ]]; then
   echo "Done. Node running under PM2 as '$NAME'. View logs with: pm2 logs $NAME"
 else
   echo "Done. Node running. Monitor logs: tail -f $LOG_FILE"
