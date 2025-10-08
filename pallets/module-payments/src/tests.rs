@@ -1,8 +1,6 @@
 use crate::{ Error, Event, Pallet as ModulePayments, PaymentReport, mock::* };
 use frame_support::{ assert_noop, assert_ok, BoundedVec };
 extern crate alloc;
-use alloc::vec;
-use frame_system::RawOrigin;
 use pallet_modules::module::{ Module, ModuleTier };
 
 fn bv(input: &[u8]) -> BoundedVec<u8, <Test as pallet_modules::Config>::MaxModuleNameLength> {

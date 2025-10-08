@@ -195,7 +195,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(1)]
-        #[pallet::weight({ 0 })]
+        #[pallet::weight(T::WeightInfo::set_module_weights())]
         pub fn set_module_weights(
             origin: OriginFor<T>,
             module_ids: Vec<u64>,
@@ -234,7 +234,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(2)]
-        #[pallet::weight({ 0 })]
+        #[pallet::weight(T::WeightInfo::report_payment())]
         pub fn report_payment(origin: OriginFor<T>, payment: PaymentReport<T>) -> DispatchResult {
             ensure_authorized_module::<T>(origin)?;
 

@@ -99,6 +99,10 @@ mod benchmarks {
         let caller: T::AccountId = whitelisted_caller();
         let rando_module_1: T::AccountId = account("rando_module_1", 1, 1);
         let rando_user_2: T::AccountId = account("rando_user_2", 2, 2);
+        drop(<T as crate::Config>::Currency::deposit_creating(
+          &rando_user_2,
+          10_000_000_000_000,
+        ));
         let modules: [pallet_modules::module::Module<<T as Config>::Modules>; 2] = [
             pallet_modules::module::Module {
                 owner: caller.clone(),
