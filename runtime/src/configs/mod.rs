@@ -25,12 +25,9 @@
 
 // Substrate and Polkadot dependencies
 use frame_support::{
-    derive_impl, parameter_types,
-    traits::{ConstBool, ConstU128, ConstU32, ConstU64, ConstU8, VariantCountOf},
-    weights::{
-        constants::{RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND},
-        IdentityFee, Weight,
-    },
+    PalletId, derive_impl, parameter_types, traits::{ConstBool, ConstU8, ConstU32, ConstU64, ConstU128, VariantCountOf}, weights::{
+        IdentityFee, Weight, constants::{RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND}
+    }
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{ConstFeeMultiplier, FungibleAdapter, Multiplier};
@@ -223,6 +220,7 @@ impl pallet_modules::Config for Runtime {
 
 parameter_types! {
     pub const DefaultModulePaymentFee: Percent = Percent::from_percent(2);
+    pub const ModnetPaymentsPalletId: PalletId = PalletId(*b"modnet00");
 }
 
 impl pallet_module_payments::Config for Runtime {
@@ -230,6 +228,8 @@ impl pallet_module_payments::Config for Runtime {
     type WeightInfo = ();
     type Currency = Balances;
     type Modules = Runtime;
+
+    type PalletId = ModnetPaymentsPalletId;
 
     type DefaultModulePaymentFee = DefaultModulePaymentFee;
 }

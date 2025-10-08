@@ -24,7 +24,10 @@ pub use weights::*;
 
 pub(crate) use ext::*;
 use frame_support::traits::{
-    Currency, InspectLockableCurrency, LockableCurrency, NamedReservableCurrency,
+    Currency,
+    InspectLockableCurrency,
+    LockableCurrency,
+    NamedReservableCurrency,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 
@@ -32,9 +35,14 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub mod pallet {
     use super::*;
     use frame_support::{
-		dispatch::DispatchResult, ensure, pallet_prelude::*, sp_runtime::Percent, traits::ConstU64,
+        dispatch::DispatchResult,
+        ensure,
+        pallet_prelude::*,
+        sp_runtime::{ traits::AccountIdConversion, Percent },
+        traits::ConstU64,
+        PalletId,
     };
-    use frame_system::{ensure_signed, pallet_prelude::*};
+    use frame_system::{ ensure_signed, pallet_prelude::* };
     use sp_std::vec::Vec;
     extern crate alloc;
 
@@ -45,13 +53,16 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type WeightInfo: WeightInfo;
-        type Currency: Currency<Self::AccountId, Balance = u128>
-            + LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>>
-            + InspectLockableCurrency<Self::AccountId>
-            + NamedReservableCurrency<Self::AccountId, ReserveIdentifier = [u8; 8]>
-            + Send
-            + Sync;
+        type Currency: Currency<Self::AccountId, Balance = u128> +
+            LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>> +
+            InspectLockableCurrency<Self::AccountId> +
+            NamedReservableCurrency<Self::AccountId, ReserveIdentifier = [u8; 8]> +
+            Send +
+            Sync;
         type Modules: pallet_modules::Config<AccountId = Self::AccountId>;
+
+        #[pallet::constant]
+        type PalletId: Get<PalletId>;
 
         #[pallet::constant]
         type DefaultModulePaymentFee: Get<Percent>;
@@ -60,14 +71,29 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        AuthorizedModuleSet { module_id: u64 },
+        AuthorizedModuleSet {
+            module_id: u64,
+        },
     }
 
     #[pallet::error]
     pub enum Error<T> {
         NotAuthorizedModule,
-		LengthMismatch,
+        LengthMismatch,
     }
+
+    #[pallet::type_value]
+    pub fn DefaultPaymentPoolAddress<T: Config>() -> T::AccountId {
+        <T as Config>::PalletId::get().into_account_truncating()
+    }
+
+    #[pallet::storage]
+    pub type PaymentPoolAddress<T: Config> = StorageValue<
+        _,
+        T::AccountId,
+        ValueQuery,
+        DefaultPaymentPoolAddress<T>
+    >;
 
     #[pallet::storage]
     pub type AuthorizedModule<T: Config> = StorageValue<_, u64, ValueQuery, ConstU64<0>>;
@@ -76,13 +102,20 @@ pub mod pallet {
     pub type ModuleUsageWeights<T: Config> = StorageMap<_, Identity, u64, u16>;
 
     #[pallet::storage]
-    pub type ModulePaymentFee<T: Config> =
-        StorageValue<_, Percent, ValueQuery, T::DefaultModulePaymentFee>;
+    pub type ModulePaymentFee<T: Config> = StorageValue<
+        _,
+        Percent,
+        ValueQuery,
+        T::DefaultModulePaymentFee
+    >;
 
-    pub fn ensure_authorized_module<T: crate::Config>(origin: OriginFor<T>) -> Result<(), frame_support::sp_runtime::DispatchError> {
+    pub fn ensure_authorized_module<T: crate::Config>(
+        origin: OriginFor<T>
+    ) -> Result<(), frame_support::sp_runtime::DispatchError> {
         let caller = ensure_signed(origin)?;
         let authorized_module_id = crate::AuthorizedModule::<T>::get();
-        let authorized_module = pallet_modules::Modules::<T::Modules>::get(authorized_module_id)
+        let authorized_module = pallet_modules::Modules::<T::Modules>
+            ::get(authorized_module_id)
             .ok_or(pallet_modules::Error::<T::Modules>::ModuleNotFound)?;
         let authorized = authorized_module.owner == caller;
         if authorized {
@@ -94,7 +127,10 @@ pub mod pallet {
 
     /// Normalizes weights of [u16]
     pub fn normalize_weights(weights: &[u16]) -> Vec<u16> {
-		let sum: u64 = weights.iter().map(|&x| u64::from(x)).sum();
+        let sum: u64 = weights
+            .iter()
+            .map(|&x| u64::from(x))
+            .sum();
         if sum == 0 {
             return weights.to_vec();
         }
@@ -120,7 +156,9 @@ pub mod pallet {
             let module_exists = pallet_modules::Modules::<T::Modules>::contains_key(module_id);
 
             if module_exists {
-                crate::AuthorizedModule::<T>::mutate(|v| *v = module_id);
+                crate::AuthorizedModule::<T>::mutate(|v| {
+                    *v = module_id;
+                });
 
                 crate::Pallet::<T>::deposit_event(crate::Event::<T>::AuthorizedModuleSet {
                     module_id: module_id,
@@ -133,42 +171,57 @@ pub mod pallet {
         }
 
         #[pallet::call_index(1)]
-        #[pallet::weight({0})]
+        #[pallet::weight({ 0 })]
         pub fn set_module_weights(
             origin: OriginFor<T>,
-            module_ids: Vec<u16>,
-            weights: Vec<u16>,
+            module_ids: Vec<u64>,
+            weights: Vec<u16>
         ) -> DispatchResult {
             ensure_authorized_module::<T>(origin)?;
 
-			ensure!(module_ids.len() == weights.len(), Error::<T>::LengthMismatch);
+            ensure!(module_ids.len() == weights.len(), Error::<T>::LengthMismatch);
 
-			let normalized_values = normalize_weights(&weights);
-			let desired_pairs: Vec<(u64, u16)> = module_ids
-				.into_iter()
-				.map(|id| id as u64)
-				.zip(normalized_values.into_iter())
-				.collect();
+            let normalized_values = normalize_weights(&weights);
+            let desired_pairs: Vec<(u64, u16)> = module_ids
+                .into_iter()
+                .map(|id| id as u64)
+                .zip(normalized_values.into_iter())
+                .collect();
 
-			// Build set of desired keys for pruning
-			let desired_keys: sp_std::collections::btree_set::BTreeSet<u64> = desired_pairs
-				.iter()
-				.map(|(k, _)| *k)
-				.collect();
+            // Build set of desired keys for pruning
+            let desired_keys: sp_std::collections::btree_set::BTreeSet<u64> = desired_pairs
+                .iter()
+                .map(|(k, _)| *k)
+                .collect();
 
-			// Remove any existing entries that are no longer desired
-			for existing_key in crate::ModuleUsageWeights::<T>::iter_keys() {
-				if !desired_keys.contains(&existing_key) {
-					crate::ModuleUsageWeights::<T>::remove(existing_key);
-				}
-			}
+            // Remove any existing entries that are no longer desired
+            for existing_key in crate::ModuleUsageWeights::<T>::iter_keys() {
+                if !desired_keys.contains(&existing_key) {
+                    crate::ModuleUsageWeights::<T>::remove(existing_key);
+                }
+            }
 
-			// Insert/update desired pairs
-			for (id, weight) in desired_pairs {
-				crate::ModuleUsageWeights::<T>::insert(id, weight);
-			}
+            // Insert/update desired pairs
+            for (id, weight) in desired_pairs {
+                crate::ModuleUsageWeights::<T>::insert(id, weight);
+            }
 
-			Ok(())
+            Ok(())
+        }
+
+        #[pallet::call_index(2)]
+        #[pallet::weight({ 0 })]
+        pub fn report_payment(
+            origin: OriginFor<T>,
+            module_id: u64,
+            payee: AccountIdOf<T>,
+            amount: u128
+        ) -> DispatchResult {
+            ensure_authorized_module::<T>(origin)?;
+
+            // TODO: Complete
+
+            Ok(())
         }
     }
 }

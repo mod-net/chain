@@ -2,7 +2,8 @@ use crate as pallet_module_payments;
 use frame_support::{
     derive_impl,
     parameter_types,
-    traits::{ ConstU16, ConstU32, ConstU64, ConstU128, VariantCountOf },
+    traits::{ Get, ConstU16, ConstU32, ConstU64, ConstU128, VariantCountOf },
+    PalletId,
 };
 use sp_core::H256;
 use sp_runtime::{ BuildStorage, Percent, traits::{ BlakeTwo256, IdentityLookup } };
@@ -104,11 +105,21 @@ parameter_types! {
     pub const DefaultModulePaymentFee: Percent = Percent::from_percent(2);
 }
 
+pub const MODNET_PAYMENTS_PALLET_ID: PalletId = PalletId(*b"modnet00");
+pub struct ModnetPaymentsPalletId;
+impl Get<PalletId> for ModnetPaymentsPalletId {
+    fn get() -> PalletId {
+        MODNET_PAYMENTS_PALLET_ID
+    }
+}
+
 impl pallet_module_payments::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
     type Currency = Balances;
     type Modules = Test;
+
+    type PalletId = ModnetPaymentsPalletId;
 
     type DefaultModulePaymentFee = DefaultModulePaymentFee;
 }
