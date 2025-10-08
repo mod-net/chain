@@ -430,10 +430,12 @@ if [[ -z "$USE_PM2" ]]; then
 fi
 
 # load exported key variables from source_keys.sh (AURA/GRANDPA, plus filename-derived)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export TARGET_DIR="$MODNET_KEY_DIR"
-export MODNET_KEYS_SCRIPT="$MODNET_KEYS_SCRIPT"
-source "$SCRIPT_DIR/source_keys.sh"
+if [[ -z "${MODNET_KEY_AURA:-}" || -z "${MODNET_KEY_GRANDPA:-}" || -z "${KEY_AURA_PATH:-}" || -z "${KEY_GRANDPA_PATH:-}" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  export TARGET_DIR="$MODNET_KEY_DIR"
+  export MODNET_KEYS_SCRIPT="$MODNET_KEYS_SCRIPT"
+  source "$SCRIPT_DIR/source_keys.sh"
+fi
 
 if ! resolve_libp2p_key; then
   echo "INFO: MODNET_KEY_LIBP2P not set; will continue without --node-key unless generated." >&2
