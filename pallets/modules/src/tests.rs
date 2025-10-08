@@ -7,6 +7,14 @@ fn bv(input: &[u8]) -> BoundedVec<u8, <Test as crate::Config>::MaxModuleNameLeng
     BoundedVec::try_from(input.to_vec()).expect("within bound")
 }
 
+fn sr(input: &[u8]) -> crate::StorageReference<Test> {
+    Some(BoundedVec::try_from(input.to_vec()).expect("within bound"))
+}
+
+fn url(input: &[u8]) -> crate::URLReference<Test> {
+    Some(BoundedVec::try_from(input.to_vec()).expect("within bound"))
+}
+
 #[test]
 fn module_data_length_enforced() {
     new_test_ext().execute_with(|| {
@@ -25,14 +33,6 @@ fn module_data_length_enforced() {
         let data_ok = sr(&at_bound);
         assert_ok!(ModuleRegistry::<Test>::register_module(RuntimeOrigin::signed(who), name, data_ok, url_ref, None));
     });
-}
-
-fn sr(input: &[u8]) -> crate::StorageReference<Test> {
-    Some(BoundedVec::try_from(input.to_vec()).expect("within bound"))
-}
-
-fn url(input: &[u8]) -> crate::URLReference<Test> {
-    Some(BoundedVec::try_from(input.to_vec()).expect("within bound"))
 }
 
 #[test]

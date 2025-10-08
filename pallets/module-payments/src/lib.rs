@@ -71,6 +71,9 @@ pub mod pallet {
 
         #[pallet::constant]
         type DefaultPaymentDistributionPeriod: Get<Block>;
+
+        #[pallet::constant]
+        type ExistentialDeposit: Get<u128>;
     }
 
     #[pallet::event]

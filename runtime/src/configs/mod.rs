@@ -231,6 +231,7 @@ impl pallet_module_payments::Config for Runtime {
 
     type PalletId = ModnetPaymentsPalletId;
 
+    type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
     type DefaultModulePaymentFee = DefaultModulePaymentFee;
     type DefaultPaymentDistributionPeriod = ConstU64<25>;
 }
