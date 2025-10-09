@@ -31,6 +31,7 @@ use frame_support::{
         constants::{RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND},
         IdentityFee, Weight,
     },
+    PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{ConstFeeMultiplier, FungibleAdapter, Multiplier};
@@ -62,6 +63,7 @@ parameter_types! {
 
 // Bridge pallet configuration
 impl pallet_bridge::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
 }
 
@@ -200,6 +202,7 @@ parameter_types! {
 
 /// Configure the Modules pallet for real blockchain transactions.
 impl pallet_modules::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = pallet_modules::weights::SubstrateWeight<Runtime>;
 
@@ -217,4 +220,23 @@ impl pallet_modules::Config for Runtime {
     type MaxURLLength = ConstU32<128>;
     /// Default Module Registration Cost
     type DefaultModuleCollateral = ConstU128<5_000_000_000>;
+}
+
+parameter_types! {
+    pub const DefaultModulePaymentFee: Perbill = Perbill::from_perthousand(25); // 2.5%
+    pub const ModnetPaymentsPalletId: PalletId = PalletId(*b"modnet00");
+}
+
+impl pallet_module_payments::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
+    type Currency = Balances;
+    type Modules = Runtime;
+
+    type PalletId = ModnetPaymentsPalletId;
+
+    type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
+    type DefaultModulePaymentFee = DefaultModulePaymentFee;
+    type DefaultPaymentDistributionPeriod = ConstU64<25>;
+    type MaxModules = MaxModules;
 }

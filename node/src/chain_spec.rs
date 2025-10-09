@@ -25,12 +25,11 @@ pub fn modnet_testnet_chain_spec() -> Result<ChainSpec, String> {
     props.insert("ss58Format".into(), 42.into());
 
     // Telemetry endpoint provided by user (ngrok). Substrate expects wss:// and /submit/ path.
-    let telemetry = TelemetryEndpoints::new(vec![
-        (
-            "wss://telemetry-comai.ngrok.dev/submit/".to_string(),
-            0,
-        ),
-    ]).expect("Telemetry endpoint vector must be non-empty");
+    let telemetry = TelemetryEndpoints::new(vec![(
+        "wss://telemetry-comai.ngrok.dev/submit/".to_string(),
+        0,
+    )])
+    .expect("Telemetry endpoint vector must be non-empty");
 
     Ok(ChainSpec::builder(
         WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?,

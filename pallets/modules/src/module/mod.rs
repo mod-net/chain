@@ -1,5 +1,5 @@
-mod module;
 mod extrinsics;
+mod module;
 
-pub use module::*;
 pub use extrinsics::*;
+pub use module::*;

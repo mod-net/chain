@@ -1,4 +1,4 @@
-use super::{Module, ModuleName};
+use super::{Module, ModuleName, ModuleTier};
 use crate::{AccountIdOf, StorageReference, URLReference};
 use frame_support::{
     dispatch::DispatchResult,
@@ -25,14 +25,15 @@ pub fn register<T: crate::Config>(
         .expect("Blocks will not exceed u64 maximum.");
 
     let next_module_id = crate::NextModule::<T>::get();
+    // TODO: Make MaxModules check against actual modules in registry instead of index
     ensure!(
         next_module_id.saturating_add(1) != <T as crate::Config>::MaxModules::get(),
-        crate::Error::<T>::MaxModulesReached,
+        crate::Error::<T>::MaxModulesReached
     );
 
     let take = take.unwrap_or(Percent::zero());
     let max_take = crate::MaxModuleTake::<T>::get();
-    ensure!(take <= max_take, crate::Error::<T>::MaxTakeExceeded,);
+    ensure!(take <= max_take, crate::Error::<T>::MaxTakeExceeded);
 
     crate::Modules::<T>::insert(
         next_module_id,
@@ -44,12 +45,15 @@ pub fn register<T: crate::Config>(
             url: url.clone(),
             collateral,
             take,
+            tier: ModuleTier::Unapproved,
             created_at: current_block,
             last_updated: current_block,
         },
     );
 
-    crate::NextModule::<T>::mutate(|v| *v = v.saturating_add(1));
+    crate::NextModule::<T>::mutate(|v| {
+        *v = v.saturating_add(1);
+    });
 
     crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleRegistered {
         who: origin,
@@ -126,6 +130,30 @@ pub fn update<T: crate::Config>(
                     data: new_data,
                     url: new_url,
                     take: new_take,
+                });
+
+                Ok(())
+            }
+            None => Err(crate::Error::<T>::ModuleNotFound.into()),
+        }
+    })
+}
+
+pub fn change_tier<T: crate::Config>(id: u64, tier: ModuleTier) -> DispatchResult {
+    crate::Modules::<T>::try_mutate(&id, |module_query| -> DispatchResult {
+        match module_query {
+            Some(module) => {
+                let current_block: u64 = <frame_system::Pallet<T>>::block_number()
+                    .try_into()
+                    .ok()
+                    .expect("Blocks will not exceed u64 maximum.");
+
+                module.tier = tier.clone();
+                module.last_updated = current_block;
+
+                crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleTierChanged {
+                    id,
+                    tier,
                 });
 
                 Ok(())
