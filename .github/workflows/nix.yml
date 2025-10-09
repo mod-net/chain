@@ -4,7 +4,7 @@ on:
   pull_request:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -30,21 +30,21 @@ jobs:
           chmod 777 /_work/_actions 2>/dev/null || true
           chmod 777 /_work/_tool 2>/dev/null || true
           chmod 777 /_work/_work 2>/dev/null || true
-          
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          clean: true
+
       - name: Install dependencies
         run: |
           # Install git and cacert
           nix-env -iA nixpkgs.git nixpkgs.cacert
           git config --global --add safe.directory "${{ github.workspace }}"
-          
+
           # Install Node.js for GitHub Actions
           nix-env -iA nixpkgs.nodejs
           mkdir -p /__e/node20/bin
           ln -sf $(which node) /__e/node20/bin/node
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Cache Nix
         uses: DeterminateSystems/magic-nix-cache-action@v8
