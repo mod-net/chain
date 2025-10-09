@@ -4,7 +4,7 @@ on:
   pull_request:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -19,17 +19,17 @@ jobs:
     steps:
       - name: setup-workspace
         run: |
-          rm -rf /__w
-          mkdir -p /__w
-          mkdir -p /__w/_temp
-          mkdir -p /__w/_actions
-          mkdir -p /__w/_tool
-          mkdir -p /__w/_work
+          rm -rf /_work
+          mkdir -p /_work
+          mkdir -p /_work/_temp
+          mkdir -p /_work/_actions
+          mkdir -p /_work/_tool
+          mkdir -p /_work/_work
 
-          chmod 777 /__w/_temp 2>/dev/null || true
-          chmod 777 /__w/_actions 2>/dev/null || true
-          chmod 777 /__w/_tool 2>/dev/null || true
-          chmod 777 /__w/_work 2>/dev/null || true
+          chmod 777 /_work/_temp 2>/dev/null || true
+          chmod 777 /_work/_actions 2>/dev/null || true
+          chmod 777 /_work/_tool 2>/dev/null || true
+          chmod 777 /_work/_work 2>/dev/null || true
           
       - name: Checkout
         uses: actions/checkout@v4
