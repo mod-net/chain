@@ -124,6 +124,7 @@ impl pallet_module_payments::Config for Test {
     type DefaultModulePaymentFee = DefaultModulePaymentFee;
     type DefaultPaymentDistributionPeriod = ConstU64<25>;
     type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
+    type MaxModules = MaxModules;
 }
 
 // Build genesis storage according to the mock runtime.

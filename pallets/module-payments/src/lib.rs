@@ -46,6 +46,7 @@ pub mod pallet {
     };
     use frame_system::{ ensure_signed, pallet_prelude::* };
     use sp_std::vec::Vec;
+    use sp_std::collections::btree_map::BTreeMap;
     extern crate alloc;
 
     #[pallet::pallet]
@@ -74,6 +75,59 @@ pub mod pallet {
 
         #[pallet::constant]
         type ExistentialDeposit: Get<u128>;
+
+        #[pallet::constant]
+        type MaxModules: Get<u64>;
+    }
+
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_initialize(block_number: BlockNumberFor<T>) -> Weight {
+            let block_number: u64 = block_number
+                .try_into()
+                .ok()
+                .expect("Blocks will never exceed u64 maximum.");
+            let mut total_weight = Weight::zero();
+            let distribution_period = PaymentDistributionPeriod::<T>::get();
+            if block_number % distribution_period != 0u64 {
+                total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
+                return total_weight;
+            }
+
+            let pool_address = PaymentPoolAddress::<T>::get();
+            let mut pool_balance = <T as crate::Config>::Currency::free_balance(&pool_address);
+            let module_weight_percentages: BTreeMap<u64, Perbill> = ModuleUsageWeights::<T>
+                ::iter()
+                .map(|(module_id, module_weight)| (
+                    module_id,
+                    Perbill::from_rational(u32::from(module_weight), u32::from(u16::MAX)),
+                ))
+                .collect();
+            total_weight = total_weight.saturating_add(T::DbWeight::get().reads(3));
+
+            pallet_modules::Modules::<T::Modules>::iter().for_each(|(module_id, module)| {
+                let module_weight_percentage = module_weight_percentages.get(&module_id);
+                match module_weight_percentage {
+                    Some(percentage) => {
+                        let fee_to_distribute = percentage.mul_floor(pool_balance);
+                        let module_address = module.owner;
+                        let _ = <T as crate::Config>::Currency::transfer(
+                            &pool_address,
+                            &module_address,
+                            fee_to_distribute,
+                            frame_support::traits::ExistenceRequirement::KeepAlive,
+                        );
+                        pool_balance = pool_balance.saturating_sub(fee_to_distribute);
+                        total_weight = total_weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
+                    }
+                    None => {
+                        total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
+                    }
+                }
+            });
+
+            total_weight
+        }
     }
 
     #[pallet::event]
