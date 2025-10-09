@@ -26,6 +26,7 @@ pub fn register<T: crate::Config>(
         .expect("Blocks will not exceed u64 maximum.");
 
     let next_module_id = crate::NextModule::<T>::get();
+    // TODO: Make MaxModules check against actual modules in registry instead of index
     ensure!(
         next_module_id.saturating_add(1) != <T as crate::Config>::MaxModules::get(),
         crate::Error::<T>::MaxModulesReached
