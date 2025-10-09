@@ -1,9 +1,6 @@
 use crate as pallet_module_payments;
 use frame_support::{
-    derive_impl,
-    parameter_types,
-    traits::{ Get, ConstU16, ConstU32, ConstU64, ConstU128, VariantCountOf },
-    PalletId,
+    PalletId, derive_impl, parameter_types, traits::{ ConstU16, ConstU32, ConstU64, ConstU128, Get, VariantCountOf }, weights::constants::RocksDbWeight
 };
 use sp_core::H256;
 use sp_runtime::{ BuildStorage, Perbill, Percent, traits::{ BlakeTwo256, IdentityLookup } };
@@ -32,7 +29,7 @@ impl frame_system::Config for Test {
     type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = ();
     type BlockLength = ();
-    type DbWeight = ();
+    type DbWeight = RocksDbWeight;
     type RuntimeOrigin = RuntimeOrigin;
     type RuntimeCall = RuntimeCall;
     type Nonce = u64;

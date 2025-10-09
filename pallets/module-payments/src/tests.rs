@@ -1,5 +1,11 @@
 use crate::{ Error, Event, ModuleUsageWeights, Pallet as ModulePayments, PaymentReport, mock::* };
-use frame_support::{ assert_noop, assert_ok, BoundedVec, sp_runtime::traits::Get };
+use frame_support::{
+    BoundedVec,
+    assert_noop,
+    assert_ok,
+    sp_runtime::traits::Get,
+    weights::constants::RocksDbWeight,
+};
 extern crate alloc;
 use pallet_modules::module::{ Module, ModuleTier };
 
@@ -274,14 +280,20 @@ fn fee_distribution() {
             System::set_block_number(block_number);
             // Should not distribute yet
             let weight = ModulePayments::<Test>::on_initialize(block_number);
-            assert_eq!(weight, frame_support::weights::Weight::from_parts(0, 0)); // 1 read for period
+            let expected_weight = RocksDbWeight::get().reads_writes(1, 0);
+            assert_eq!(weight, expected_weight);
             block_number += 1;
         }
 
         // At the distribution period, distribution should occur
         System::set_block_number(period);
-        let _ = ModulePayments::<Test>::on_initialize(period);
+        let weight = ModulePayments::<Test>::on_initialize(period);
+        // The weight should reflect the number of modules processed
+        let expected_weight = RocksDbWeight::get().reads_writes(8, 3);
+        assert_eq!(weight, expected_weight);
+        println!("runtime: weight: {:?};\texpected: {:?}", weight, expected_weight);
 
+        // Check balances after distribution
         let normalized_weights = crate::normalize_weights(&weights);
         let expected_0 = normalized_weights[0];
         let expected_1 = normalized_weights[1];
