@@ -31,12 +31,6 @@ jobs:
           chmod 777 /_work/_tool 2>/dev/null || true
           chmod 777 /_work/_work 2>/dev/null || true
           
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          clean: true
-
-      - name: Cache Nix
       - name: Install dependencies
         run: |
           # Install git and cacert
