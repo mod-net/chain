@@ -26,10 +26,7 @@ pub use weights::*;
 
 pub(crate) use ext::*;
 use frame_support::traits::{
-    Currency,
-    InspectLockableCurrency,
-    LockableCurrency,
-    NamedReservableCurrency,
+    Currency, InspectLockableCurrency, LockableCurrency, NamedReservableCurrency,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 
@@ -37,16 +34,16 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub mod pallet {
     use super::*;
     use frame_support::{
-        PalletId,
         dispatch::DispatchResult,
         ensure,
         pallet_prelude::*,
-        sp_runtime::{ Perbill, traits::AccountIdConversion },
+        sp_runtime::{traits::AccountIdConversion, Perbill},
         traits::ConstU64,
+        PalletId,
     };
-    use frame_system::{ ensure_signed, pallet_prelude::* };
-    use sp_std::vec::Vec;
+    use frame_system::{ensure_signed, pallet_prelude::*};
     use sp_std::collections::btree_map::BTreeMap;
+    use sp_std::vec::Vec;
     extern crate alloc;
 
     #[pallet::pallet]
@@ -56,12 +53,12 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type WeightInfo: WeightInfo;
-        type Currency: Currency<Self::AccountId, Balance = u128> +
-            LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>> +
-            InspectLockableCurrency<Self::AccountId> +
-            NamedReservableCurrency<Self::AccountId, ReserveIdentifier = [u8; 8]> +
-            Send +
-            Sync;
+        type Currency: Currency<Self::AccountId, Balance = u128>
+            + LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>>
+            + InspectLockableCurrency<Self::AccountId>
+            + NamedReservableCurrency<Self::AccountId, ReserveIdentifier = [u8; 8]>
+            + Send
+            + Sync;
         type Modules: pallet_modules::Config<AccountId = Self::AccountId>;
 
         #[pallet::constant]
@@ -81,12 +78,13 @@ pub mod pallet {
     }
 
     fn module_weight_percentages<T: Config>() -> BTreeMap<u64, Perbill> {
-        ModuleUsageWeights::<T>
-            ::iter()
-            .map(|(module_id, module_weight)| (
-                module_id,
-                Perbill::from_rational(u32::from(module_weight), u32::from(u16::MAX)),
-            ))
+        ModuleUsageWeights::<T>::iter()
+            .map(|(module_id, module_weight)| {
+                (
+                    module_id,
+                    Perbill::from_rational(u32::from(module_weight), u32::from(u16::MAX)),
+                )
+            })
             .collect()
     }
 
@@ -106,15 +104,12 @@ pub mod pallet {
             }
             let existential_deposit = T::ExistentialDeposit::get();
             let pool_address = PaymentPoolAddress::<T>::get();
-            let pool_balance = <T as crate::Config>::Currency
-                ::free_balance(&pool_address)
+            let pool_balance = <T as crate::Config>::Currency::free_balance(&pool_address)
                 .saturating_sub(existential_deposit);
             total_weight = total_weight.saturating_add(T::DbWeight::get().reads(3));
 
-            let module_weight_percentages: BTreeMap<
-                u64,
-                Perbill
-            > = module_weight_percentages::<T>();
+            let module_weight_percentages: BTreeMap<u64, Perbill> =
+                module_weight_percentages::<T>();
             total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
 
             pallet_modules::Modules::<T::Modules>::iter().for_each(|(module_id, module)| {
@@ -127,11 +122,10 @@ pub mod pallet {
                             &pool_address,
                             &module_address,
                             fee_to_distribute,
-                            frame_support::traits::ExistenceRequirement::KeepAlive
+                            frame_support::traits::ExistenceRequirement::KeepAlive,
                         );
-                        total_weight = total_weight.saturating_add(
-                            T::DbWeight::get().reads_writes(1, 1)
-                        );
+                        total_weight =
+                            total_weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
                     }
                     None => {
                         total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
@@ -171,12 +165,8 @@ pub mod pallet {
     }
 
     #[pallet::storage]
-    pub type PaymentPoolAddress<T: Config> = StorageValue<
-        _,
-        T::AccountId,
-        ValueQuery,
-        DefaultPaymentPoolAddress<T>
-    >;
+    pub type PaymentPoolAddress<T: Config> =
+        StorageValue<_, T::AccountId, ValueQuery, DefaultPaymentPoolAddress<T>>;
 
     #[pallet::storage]
     pub type AuthorizedModule<T: Config> = StorageValue<_, u64, ValueQuery, ConstU64<0>>;
@@ -185,28 +175,19 @@ pub mod pallet {
     pub type ModuleUsageWeights<T: Config> = StorageMap<_, Identity, u64, u16>;
 
     #[pallet::storage]
-    pub type ModulePaymentFee<T: Config> = StorageValue<
-        _,
-        Perbill,
-        ValueQuery,
-        T::DefaultModulePaymentFee
-    >;
+    pub type ModulePaymentFee<T: Config> =
+        StorageValue<_, Perbill, ValueQuery, T::DefaultModulePaymentFee>;
 
     #[pallet::storage]
-    pub type PaymentDistributionPeriod<T: Config> = StorageValue<
-        _,
-        Block,
-        ValueQuery,
-        T::DefaultPaymentDistributionPeriod
-    >;
+    pub type PaymentDistributionPeriod<T: Config> =
+        StorageValue<_, Block, ValueQuery, T::DefaultPaymentDistributionPeriod>;
 
     pub fn ensure_authorized_module<T: crate::Config>(
-        origin: OriginFor<T>
+        origin: OriginFor<T>,
     ) -> Result<(), frame_support::sp_runtime::DispatchError> {
         let caller = ensure_signed(origin)?;
         let authorized_module_id = crate::AuthorizedModule::<T>::get();
-        let authorized_module = pallet_modules::Modules::<T::Modules>
-            ::get(authorized_module_id)
+        let authorized_module = pallet_modules::Modules::<T::Modules>::get(authorized_module_id)
             .ok_or(pallet_modules::Error::<T::Modules>::ModuleNotFound)?;
         let authorized = authorized_module.owner == caller;
         if authorized {
@@ -218,10 +199,7 @@ pub mod pallet {
 
     /// Normalizes weights of [u16]
     pub fn normalize_weights(weights: &[u16]) -> Vec<u16> {
-        let sum: u64 = weights
-            .iter()
-            .map(|&x| u64::from(x))
-            .sum();
+        let sum: u64 = weights.iter().map(|&x| u64::from(x)).sum();
         if sum == 0 {
             return weights.to_vec();
         }
@@ -266,11 +244,14 @@ pub mod pallet {
         pub fn set_module_weights(
             origin: OriginFor<T>,
             module_ids: Vec<u64>,
-            weights: Vec<u16>
+            weights: Vec<u16>,
         ) -> DispatchResult {
             ensure_authorized_module::<T>(origin)?;
 
-            ensure!(module_ids.len() == weights.len(), Error::<T>::LengthMismatch);
+            ensure!(
+                module_ids.len() == weights.len(),
+                Error::<T>::LengthMismatch
+            );
 
             let normalized_values = normalize_weights(&weights);
             let desired_pairs: Vec<(u64, u16)> = module_ids
@@ -280,10 +261,8 @@ pub mod pallet {
                 .collect();
 
             // Build set of desired keys for pruning
-            let desired_keys: sp_std::collections::btree_set::BTreeSet<u64> = desired_pairs
-                .iter()
-                .map(|(k, _)| *k)
-                .collect();
+            let desired_keys: sp_std::collections::btree_set::BTreeSet<u64> =
+                desired_pairs.iter().map(|(k, _)| *k).collect();
 
             // Remove any existing entries that are no longer desired
             for existing_key in crate::ModuleUsageWeights::<T>::iter_keys() {

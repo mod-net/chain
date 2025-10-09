@@ -27,7 +27,7 @@ mod benchmarks {
             BoundedVec::try_from("Test Module".as_bytes().to_vec()).expect("too long"),
             None,
             None,
-            None
+            None,
         );
 
         assert!(Modules::<T>::contains_key(0));
@@ -74,7 +74,8 @@ mod benchmarks {
 
         // First register a module
         let _ = ModulesPallet::<T>::register_module(
-            RawOrigin::Signed(caller.clone()).into(),BoundedVec::try_from("Test Module".as_bytes().to_vec()).expect("too long"),
+            RawOrigin::Signed(caller.clone()).into(),
+            BoundedVec::try_from("Test Module".as_bytes().to_vec()).expect("too long"),
             None,
             None,
             None,

@@ -25,9 +25,13 @@
 
 // Substrate and Polkadot dependencies
 use frame_support::{
-    PalletId, derive_impl, parameter_types, traits::{ConstBool, ConstU8, ConstU32, ConstU64, ConstU128, VariantCountOf}, weights::{
-        IdentityFee, Weight, constants::{RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND}
-    }
+    derive_impl, parameter_types,
+    traits::{ConstBool, ConstU128, ConstU32, ConstU64, ConstU8, VariantCountOf},
+    weights::{
+        constants::{RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND},
+        IdentityFee, Weight,
+    },
+    PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{ConstFeeMultiplier, FungibleAdapter, Multiplier};

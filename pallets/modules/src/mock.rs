@@ -1,11 +1,12 @@
 use crate as pallet_modules;
 use frame_support::{
     derive_impl, parameter_types,
-    traits::{ConstU16, ConstU32, ConstU64, ConstU128, VariantCountOf},
+    traits::{ConstU128, ConstU16, ConstU32, ConstU64, VariantCountOf},
 };
 use sp_core::H256;
 use sp_runtime::{
-    BuildStorage, Percent, traits::{BlakeTwo256, IdentityLookup}
+    traits::{BlakeTwo256, IdentityLookup},
+    BuildStorage, Percent,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -52,7 +53,6 @@ impl frame_system::Config for Test {
     type OnSetCode = ();
     type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
-
 
 #[derive_impl(pallet_balances::config_preludes::TestDefaultConfig as pallet_balances::DefaultConfig)]
 impl pallet_balances::Config for Test {

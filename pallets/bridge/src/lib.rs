@@ -4,11 +4,11 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+    use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
     use sp_core::H256;
     use sp_std::vec::Vec;
-    use codec::{Decode, Encode, MaxEncodedLen, DecodeWithMemTracking};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -35,10 +35,33 @@ pub mod pallet {
     #[pallet::getter(fn base_ratio)]
     pub type BaseRatio<T> = StorageValue<_, u128, OptionQuery>;
 
-    #[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    pub enum UnlockShape { Linear, BackLoaded(u8) }
+    #[derive(
+        Clone,
+        Encode,
+        Decode,
+        DecodeWithMemTracking,
+        PartialEq,
+        Eq,
+        RuntimeDebug,
+        TypeInfo,
+        MaxEncodedLen,
+    )]
+    pub enum UnlockShape {
+        Linear,
+        BackLoaded(u8),
+    }
 
-    #[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+    #[derive(
+        Clone,
+        Encode,
+        Decode,
+        DecodeWithMemTracking,
+        PartialEq,
+        Eq,
+        RuntimeDebug,
+        TypeInfo,
+        MaxEncodedLen,
+    )]
     pub struct Params {
         pub t_min_days: u32,
         pub t_max_days: u32,
@@ -61,7 +84,12 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        Claimed { account: T::AccountId, base: u128, t_days: u32, effective: u128 },
+        Claimed {
+            account: T::AccountId,
+            base: u128,
+            t_days: u32,
+            effective: u128,
+        },
         ParamsUpdated,
         Paused,
         Unpaused,
@@ -78,7 +106,12 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
         #[pallet::weight({10_000})]
-        pub fn claim(origin: OriginFor<T>, _proof: Vec<u8>, _leaf: Vec<u8>, t_days: u32) -> DispatchResult {
+        pub fn claim(
+            origin: OriginFor<T>,
+            _proof: Vec<u8>,
+            _leaf: Vec<u8>,
+            t_days: u32,
+        ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(!Paused::<T>::get(), Error::<T>::BridgePaused);
             ensure!(!Claimed::<T>::get(&who), Error::<T>::AlreadyClaimed);
@@ -88,7 +121,12 @@ pub mod pallet {
             Claimed::<T>::insert(&who, true);
             let base: u128 = 0;
             let effective: u128 = 0;
-            Self::deposit_event(Event::Claimed { account: who, base, t_days, effective });
+            Self::deposit_event(Event::Claimed {
+                account: who,
+                base,
+                t_days,
+                effective,
+            });
             Ok(())
         }
 
@@ -120,6 +158,6 @@ pub mod pallet {
         }
     }
 
-    pub trait WeightInfo { }
-    impl WeightInfo for () { }
+    pub trait WeightInfo {}
+    impl WeightInfo for () {}
 }

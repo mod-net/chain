@@ -1,9 +1,15 @@
 use crate as pallet_module_payments;
 use frame_support::{
-    PalletId, derive_impl, parameter_types, traits::{ ConstU16, ConstU32, ConstU64, ConstU128, Get, VariantCountOf }, weights::constants::RocksDbWeight
+    derive_impl, parameter_types,
+    traits::{ConstU128, ConstU16, ConstU32, ConstU64, Get, VariantCountOf},
+    weights::constants::RocksDbWeight,
+    PalletId,
 };
 use sp_core::H256;
-use sp_runtime::{ BuildStorage, Perbill, Percent, traits::{ BlakeTwo256, IdentityLookup } };
+use sp_runtime::{
+    traits::{BlakeTwo256, IdentityLookup},
+    BuildStorage, Perbill, Percent,
+};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -126,15 +132,21 @@ impl pallet_module_payments::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+    let mut t = frame_system::GenesisConfig::<Test>::default()
+        .build_storage()
+        .unwrap();
 
     // Endow some accounts with ample balance for reservation tests.
     (pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(1, 10_000_000_000_000), (2, 10_000_000_000_000), (3, 10_000_000_000_000)],
+        balances: vec![
+            (1, 10_000_000_000_000),
+            (2, 10_000_000_000_000),
+            (3, 10_000_000_000_000),
+        ],
         dev_accounts: Default::default(),
     })
-        .assimilate_storage(&mut t)
-        .unwrap();
+    .assimilate_storage(&mut t)
+    .unwrap();
 
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));

@@ -1,13 +1,9 @@
-use crate::{ Error, Event, ModuleUsageWeights, Pallet as ModulePayments, PaymentReport, mock::* };
+use crate::{mock::*, Error, Event, ModuleUsageWeights, Pallet as ModulePayments, PaymentReport};
 use frame_support::{
-    BoundedVec,
-    assert_noop,
-    assert_ok,
-    sp_runtime::traits::Get,
-    weights::constants::RocksDbWeight,
+    assert_noop, assert_ok, sp_runtime::traits::Get, weights::constants::RocksDbWeight, BoundedVec,
 };
 extern crate alloc;
-use pallet_modules::module::{ Module, ModuleTier };
+use pallet_modules::module::{Module, ModuleTier};
 
 fn bv(input: &[u8]) -> BoundedVec<u8, <Test as pallet_modules::Config>::MaxModuleNameLength> {
     BoundedVec::try_from(input.to_vec()).expect("within bound")
@@ -17,15 +13,13 @@ fn bv(input: &[u8]) -> BoundedVec<u8, <Test as pallet_modules::Config>::MaxModul
 fn set_authorized_module() {
     new_test_ext().execute_with(|| {
         let not_sudo: u64 = 1;
-        assert_ok!(
-            pallet_modules::Pallet::<Test>::register_module(
-                RuntimeOrigin::signed(not_sudo),
-                bv(b"authorized_module"),
-                None,
-                None,
-                None
-            )
-        );
+        assert_ok!(pallet_modules::Pallet::<Test>::register_module(
+            RuntimeOrigin::signed(not_sudo),
+            bv(b"authorized_module"),
+            None,
+            None,
+            None
+        ));
 
         // Fails if not sudo
         assert_noop!(
@@ -40,7 +34,10 @@ fn set_authorized_module() {
         );
 
         // Succeeds if sudo
-        assert_ok!(ModulePayments::<Test>::set_authorized_module(RuntimeOrigin::root(), 0u64));
+        assert_ok!(ModulePayments::<Test>::set_authorized_module(
+            RuntimeOrigin::root(),
+            0u64
+        ));
 
         System::assert_last_event((Event::AuthorizedModuleSet { module_id: 0u64 }).into());
     })
@@ -92,7 +89,10 @@ fn set_module_weights() {
         }
 
         // Authorized module gets set
-        assert_ok!(ModulePayments::<Test>::set_authorized_module(RuntimeOrigin::root(), 0u64));
+        assert_ok!(ModulePayments::<Test>::set_authorized_module(
+            RuntimeOrigin::root(),
+            0u64
+        ));
 
         // Fail if lengths don't match
         assert_noop!(
@@ -115,16 +115,13 @@ fn set_module_weights() {
         );
 
         // Succeed with correct parameters and status
-        assert_ok!(
-            ModulePayments::<Test>::set_module_weights(
-                RuntimeOrigin::signed(0u64),
-                [1, 2].to_vec(),
-                [80, 100].to_vec()
-            )
-        );
+        assert_ok!(ModulePayments::<Test>::set_module_weights(
+            RuntimeOrigin::signed(0u64),
+            [1, 2].to_vec(),
+            [80, 100].to_vec()
+        ));
 
-        let weight_values: Vec<u16> = crate::ModuleUsageWeights::<Test>
-            ::iter_values()
+        let weight_values: Vec<u16> = crate::ModuleUsageWeights::<Test>::iter_values()
             .into_iter()
             .collect();
         assert_eq!(weight_values, [29126u16, 36408u16]);
@@ -164,56 +161,72 @@ fn report_payment() {
             pallet_modules::Modules::insert(&m.id, m);
         }
         // Authorized module gets set
-        assert_ok!(ModulePayments::<Test>::set_authorized_module(RuntimeOrigin::root(), 0u64));
+        assert_ok!(ModulePayments::<Test>::set_authorized_module(
+            RuntimeOrigin::root(),
+            0u64
+        ));
 
         // Reported payment fails if not authorized module
         assert_noop!(
-            ModulePayments::<Test>::report_payment(RuntimeOrigin::signed(1u64), PaymentReport {
-                module_id: 1u64,
-                payee: 2u64,
-                amount: 10_000_000_000_000,
-            }),
+            ModulePayments::<Test>::report_payment(
+                RuntimeOrigin::signed(1u64),
+                PaymentReport {
+                    module_id: 1u64,
+                    payee: 2u64,
+                    amount: 10_000_000_000_000,
+                }
+            ),
             Error::<Test>::NotAuthorizedModule
         );
 
         // Reported payment fails if payment is nothing
         assert_noop!(
-            ModulePayments::<Test>::report_payment(RuntimeOrigin::signed(0u64), PaymentReport {
-                module_id: 1u64,
-                payee: 2u64,
-                amount: 0,
-            }),
+            ModulePayments::<Test>::report_payment(
+                RuntimeOrigin::signed(0u64),
+                PaymentReport {
+                    module_id: 1u64,
+                    payee: 2u64,
+                    amount: 0,
+                }
+            ),
             Error::<Test>::EmptyPayment
         );
 
         // Reported payment fails if payee balance isn't enough
         assert_noop!(
-            ModulePayments::<Test>::report_payment(RuntimeOrigin::signed(0u64), PaymentReport {
-                module_id: 1u64,
-                payee: 2u64,
-                amount: 50_000_000_000_000,
-            }),
+            ModulePayments::<Test>::report_payment(
+                RuntimeOrigin::signed(0u64),
+                PaymentReport {
+                    module_id: 1u64,
+                    payee: 2u64,
+                    amount: 50_000_000_000_000,
+                }
+            ),
             Error::<Test>::InsufficientFunds
         );
 
         // Reported payment fails if payee balance isn't enough to retain an existential balance
         assert_noop!(
-            ModulePayments::<Test>::report_payment(RuntimeOrigin::signed(0u64), PaymentReport {
-                module_id: 1u64,
-                payee: 2u64,
-                amount: 10_000_000_000_000,
-            }),
+            ModulePayments::<Test>::report_payment(
+                RuntimeOrigin::signed(0u64),
+                PaymentReport {
+                    module_id: 1u64,
+                    payee: 2u64,
+                    amount: 10_000_000_000_000,
+                }
+            ),
             Error::<Test>::InsufficientFunds
         );
 
         // Succeeds otherwise
-        assert_ok!(
-            ModulePayments::<Test>::report_payment(RuntimeOrigin::signed(0u64), PaymentReport {
+        assert_ok!(ModulePayments::<Test>::report_payment(
+            RuntimeOrigin::signed(0u64),
+            PaymentReport {
                 module_id: 1u64,
                 payee: 2u64,
                 amount: 9_999_000_000_000,
-            })
-        );
+            }
+        ));
 
         System::assert_last_event(
             (Event::ModulePaymentReported {
@@ -221,14 +234,15 @@ fn report_payment() {
                 payee: 2u64,
                 amount: 9_999_000_000_000,
                 fee: 249_975_000_000,
-            }).into()
+            })
+            .into(),
         );
     })
 }
 
 #[test]
 fn fee_distribution() {
-    use frame_support::traits::{ Currency, Hooks };
+    use frame_support::traits::{Currency, Hooks};
 
     new_test_ext().execute_with(|| {
         // Setup: Register 3 modules with different owners

@@ -1,14 +1,11 @@
-use crate::{ AccountIdOf, BalanceOf, Block, StorageReference, URLReference };
-use codec::{ Decode, DecodeWithMemTracking, Encode, MaxEncodedLen };
+use crate::{AccountIdOf, BalanceOf, Block, StorageReference, URLReference};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
-    CloneNoBound,
-    DebugNoBound,
-    EqNoBound,
-    PartialEqNoBound,
     dispatch::DispatchResult,
     ensure,
-    sp_runtime::{ BoundedVec, Percent },
+    sp_runtime::{BoundedVec, Percent},
     traits::Get,
+    CloneNoBound, DebugNoBound, EqNoBound, PartialEqNoBound,
 };
 use scale_info::TypeInfo;
 
@@ -27,7 +24,7 @@ pub type ModuleName<T> = BoundedVec<u8, <T as crate::Config>::MaxModuleNameLengt
     MaxEncodedLen,
     TypeInfo,
     PartialEqNoBound,
-    EqNoBound
+    EqNoBound,
 )]
 pub enum ModuleTier {
     /// This module was registered by the chain's administration
@@ -48,7 +45,7 @@ pub enum ModuleTier {
     MaxEncodedLen,
     TypeInfo,
     PartialEqNoBound,
-    EqNoBound
+    EqNoBound,
 )]
 #[scale_info(skip_type_params(T))]
 pub struct Module<T: crate::Config> {
@@ -72,13 +69,19 @@ impl<T: crate::Config> Module<T> {
             .map_err(|_| crate::Error::<T>::InternalError)?;
 
         // Name Not UTF8
-        ensure!(core::str::from_utf8(bytes).is_ok(), crate::Error::<T>::NameNotUTF8);
+        ensure!(
+            core::str::from_utf8(bytes).is_ok(),
+            crate::Error::<T>::NameNotUTF8
+        );
 
         // Name Empty
         ensure!(len > 0, crate::Error::<T>::NameEmpty);
 
         // Exceeds Length
-        ensure!(len <= T::MaxModuleNameLength::get(), crate::Error::<T>::NameLengthExceeded);
+        ensure!(
+            len <= T::MaxModuleNameLength::get(),
+            crate::Error::<T>::NameLengthExceeded
+        );
 
         // Leading Whitespace
         ensure!(
@@ -94,10 +97,10 @@ impl<T: crate::Config> Module<T> {
 
         // Name Taken
         ensure!(
-            crate::Modules::<T>
-                ::iter_values()
+            crate::Modules::<T>::iter_values()
                 .filter(|k| &k.name[..] == bytes)
-                .count() == 0,
+                .count()
+                == 0,
             crate::Error::<T>::NameTaken
         );
 

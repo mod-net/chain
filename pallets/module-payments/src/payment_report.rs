@@ -1,12 +1,9 @@
-use crate::{ AccountIdOf, BalanceOf };
-use codec::{ Decode, DecodeWithMemTracking, Encode, MaxEncodedLen };
+use crate::{AccountIdOf, BalanceOf};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
-    CloneNoBound,
-    DebugNoBound,
-    EqNoBound,
-    PartialEqNoBound,
     dispatch::DispatchResult,
-    traits::{ Get, Currency, ExistenceRequirement },
+    traits::{Currency, ExistenceRequirement, Get},
+    CloneNoBound, DebugNoBound, EqNoBound, PartialEqNoBound,
 };
 use scale_info::TypeInfo;
 
@@ -19,7 +16,7 @@ use scale_info::TypeInfo;
     MaxEncodedLen,
     TypeInfo,
     PartialEqNoBound,
-    EqNoBound
+    EqNoBound,
 )]
 #[scale_info(skip_type_params(T))]
 pub struct PaymentReport<T: crate::Config> {
@@ -41,7 +38,7 @@ impl<T: crate::Config> PaymentReport<T> {
             let existential_deposit = <T as crate::Config>::ExistentialDeposit::get();
             let total_cost = self.amount.saturating_add(existential_deposit);
             if payee_balance < total_cost {
-              return Err(crate::Error::<T>::InsufficientFunds.into());
+                return Err(crate::Error::<T>::InsufficientFunds.into());
             }
 
             let fee_address = crate::PaymentPoolAddress::<T>::get();
@@ -53,14 +50,14 @@ impl<T: crate::Config> PaymentReport<T> {
                 &self.payee,
                 &module_address,
                 principal,
-                ExistenceRequirement::KeepAlive
+                ExistenceRequirement::KeepAlive,
             )?;
 
             <T as crate::Config>::Currency::transfer(
                 &self.payee,
                 &fee_address,
                 fee_amount,
-                ExistenceRequirement::KeepAlive
+                ExistenceRequirement::KeepAlive,
             )?;
 
             crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModulePaymentReported {

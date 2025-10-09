@@ -1,10 +1,10 @@
-use super::{ Module, ModuleName, ModuleTier };
-use crate::{ AccountIdOf, StorageReference, URLReference };
+use super::{Module, ModuleName, ModuleTier};
+use crate::{AccountIdOf, StorageReference, URLReference};
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
     sp_runtime::Percent,
-    traits::{ Get, ReservableCurrency },
+    traits::{Get, ReservableCurrency},
 };
 
 pub fn register<T: crate::Config>(
@@ -12,15 +12,14 @@ pub fn register<T: crate::Config>(
     name: ModuleName<T>,
     data: StorageReference<T>,
     url: URLReference<T>,
-    take: Option<Percent>
+    take: Option<Percent>,
 ) -> DispatchResult {
     Module::<T>::validate_name(&name[..])?;
 
     let collateral = crate::ModuleCollateral::<T>::get();
     <T as crate::Config>::Currency::reserve(&origin, collateral)?;
 
-    let current_block: u64 = <frame_system::Pallet<T>>
-        ::block_number()
+    let current_block: u64 = <frame_system::Pallet<T>>::block_number()
         .try_into()
         .ok()
         .expect("Blocks will not exceed u64 maximum.");
@@ -36,18 +35,21 @@ pub fn register<T: crate::Config>(
     let max_take = crate::MaxModuleTake::<T>::get();
     ensure!(take <= max_take, crate::Error::<T>::MaxTakeExceeded);
 
-    crate::Modules::<T>::insert(next_module_id, Module {
-        owner: origin.clone(),
-        id: next_module_id,
-        name: name.clone(),
-        data: data.clone(),
-        url: url.clone(),
-        collateral,
-        take,
-        tier: ModuleTier::Unapproved,
-        created_at: current_block,
-        last_updated: current_block,
-    });
+    crate::Modules::<T>::insert(
+        next_module_id,
+        Module {
+            owner: origin.clone(),
+            id: next_module_id,
+            name: name.clone(),
+            data: data.clone(),
+            url: url.clone(),
+            collateral,
+            take,
+            tier: ModuleTier::Unapproved,
+            created_at: current_block,
+            last_updated: current_block,
+        },
+    );
 
     crate::NextModule::<T>::mutate(|v| {
         *v = v.saturating_add(1);
@@ -93,7 +95,7 @@ pub fn update<T: crate::Config>(
     name: Option<ModuleName<T>>,
     data: StorageReference<T>,
     url: URLReference<T>,
-    take: Option<Percent>
+    take: Option<Percent>,
 ) -> DispatchResult {
     crate::Modules::<T>::try_mutate(&id, |module_query| -> DispatchResult {
         match module_query {
@@ -102,8 +104,7 @@ pub fn update<T: crate::Config>(
                     return Err(crate::Error::<T>::ModuleOwnership.into());
                 }
 
-                let current_block: u64 = <frame_system::Pallet<T>>
-                    ::block_number()
+                let current_block: u64 = <frame_system::Pallet<T>>::block_number()
                     .try_into()
                     .ok()
                     .expect("Blocks will not exceed u64 maximum.");
@@ -142,8 +143,7 @@ pub fn change_tier<T: crate::Config>(id: u64, tier: ModuleTier) -> DispatchResul
     crate::Modules::<T>::try_mutate(&id, |module_query| -> DispatchResult {
         match module_query {
             Some(module) => {
-                let current_block: u64 = <frame_system::Pallet<T>>
-                    ::block_number()
+                let current_block: u64 = <frame_system::Pallet<T>>::block_number()
                     .try_into()
                     .ok()
                     .expect("Blocks will not exceed u64 maximum.");

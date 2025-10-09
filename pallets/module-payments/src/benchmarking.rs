@@ -16,18 +16,19 @@ mod benchmarks {
     #[benchmark]
     fn set_authorized_module() {
         let caller: T::AccountId = whitelisted_caller();
-        let module: pallet_modules::module::Module<<T as Config>::Modules> = pallet_modules::module::Module {
-            owner: caller.clone(),
-            id: 0,
-            name: BoundedVec::try_from("Test Module".as_bytes().to_vec()).expect("too long"),
-            data: None,
-            url: None,
-            collateral: 20,
-            take: frame_support::sp_runtime::Percent::zero(),
-            tier: pallet_modules::module::ModuleTier::Official,
-            created_at: 0,
-            last_updated: 0,
-        };
+        let module: pallet_modules::module::Module<<T as Config>::Modules> =
+            pallet_modules::module::Module {
+                owner: caller.clone(),
+                id: 0,
+                name: BoundedVec::try_from("Test Module".as_bytes().to_vec()).expect("too long"),
+                data: None,
+                url: None,
+                collateral: 20,
+                take: frame_support::sp_runtime::Percent::zero(),
+                tier: pallet_modules::module::ModuleTier::Official,
+                created_at: 0,
+                last_updated: 0,
+            };
         pallet_modules::Modules::insert(0, module);
 
         #[extrinsic_call]
@@ -90,7 +91,7 @@ mod benchmarks {
         ModulePayments::<T>::set_module_weights(
             RawOrigin::Signed(caller.clone()),
             [1, 2].to_vec(),
-            [80, 100].to_vec()
+            [80, 100].to_vec(),
         );
     }
 
@@ -100,8 +101,8 @@ mod benchmarks {
         let rando_module_1: T::AccountId = account("rando_module_1", 1, 1);
         let rando_user_2: T::AccountId = account("rando_user_2", 2, 2);
         drop(<T as crate::Config>::Currency::deposit_creating(
-          &rando_user_2,
-          10_000_000_000_000,
+            &rando_user_2,
+            10_000_000_000_000,
         ));
         let modules: [pallet_modules::module::Module<<T as Config>::Modules>; 2] = [
             pallet_modules::module::Module {
@@ -145,9 +146,13 @@ mod benchmarks {
                 module_id: 1u64,
                 payee: rando_user_2.clone(),
                 amount: 9_999_000_000_000,
-            }
+            },
         );
     }
 
-    impl_benchmark_test_suite!(ModulePayments, crate::mock::new_test_ext(), crate::mock::Test);
+    impl_benchmark_test_suite!(
+        ModulePayments,
+        crate::mock::new_test_ext(),
+        crate::mock::Test
+    );
 }

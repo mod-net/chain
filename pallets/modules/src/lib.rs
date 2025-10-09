@@ -30,7 +30,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub mod pallet {
     use super::*;
     use frame_support::{
-        dispatch::DispatchResult, pallet_prelude::*, sp_runtime::Percent, traits::ConstU64
+        dispatch::DispatchResult, pallet_prelude::*, sp_runtime::Percent, traits::ConstU64,
     };
     use frame_system::{ensure_signed, pallet_prelude::*};
     extern crate alloc;
@@ -75,36 +75,18 @@ pub mod pallet {
     }
 
     #[pallet::storage]
-    pub type MaxModuleTake<T: Config> = StorageValue<
-        _,
-        Percent,
-        ValueQuery,
-        T::DefaultMaxModuleTake
-    >;
+    pub type MaxModuleTake<T: Config> =
+        StorageValue<_, Percent, ValueQuery, T::DefaultMaxModuleTake>;
 
     #[pallet::storage]
-    pub type ModuleCollateral<T: Config> = StorageValue<
-        _,
-        BalanceOf<T>,
-        ValueQuery,
-        T::DefaultModuleCollateral
-    >;
+    pub type ModuleCollateral<T: Config> =
+        StorageValue<_, BalanceOf<T>, ValueQuery, T::DefaultModuleCollateral>;
 
     #[pallet::storage]
-    pub type Modules<T: Config> = StorageMap<
-        _,
-        Identity,
-        u64,
-        module::Module<T>
-    >;
+    pub type Modules<T: Config> = StorageMap<_, Identity, u64, module::Module<T>>;
 
     #[pallet::storage]
-    pub type NextModule<T: Config> = StorageValue<
-        _,
-        u64,
-        ValueQuery,
-        ConstU64<0>,
-    >;
+    pub type NextModule<T: Config> = StorageValue<_, u64, ValueQuery, ConstU64<0>>;
 
     /// Events emitted by this pallet.
     #[pallet::event]
@@ -198,10 +180,7 @@ pub mod pallet {
 
         #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::remove_module())]
-        pub fn remove_module(
-            origin: OriginFor<T>,
-            id: u64,
-        ) -> DispatchResult {
+        pub fn remove_module(origin: OriginFor<T>, id: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
             module::remove::<T>(who, id)
         }
