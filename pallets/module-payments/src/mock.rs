@@ -78,7 +78,7 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
     // Keep small to test MaxModulesReached edge case easily.
-    pub const MaxModules: u64 = 3;
+    pub const MaxModules: u64 = 10;
     pub const MaxModuleReplicants: u16 = u16::MAX;
     pub const DefaultMaxModuleTake: Percent = Percent::from_percent(5);
     pub const MaxModuleNameLength: u32 = 78;

@@ -80,6 +80,16 @@ pub mod pallet {
         type MaxModules: Get<u64>;
     }
 
+    fn module_weight_percentages<T: Config>() -> BTreeMap<u64, Perbill> {
+        ModuleUsageWeights::<T>
+            ::iter()
+            .map(|(module_id, module_weight)| (
+                module_id,
+                Perbill::from_rational(u32::from(module_weight), u32::from(u16::MAX)),
+            ))
+            .collect()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(block_number: BlockNumberFor<T>) -> Weight {
@@ -87,40 +97,46 @@ pub mod pallet {
                 .try_into()
                 .ok()
                 .expect("Blocks will never exceed u64 maximum.");
-            let mut total_weight = Weight::zero();
+            // let mut total_weight = Weight::zero();
+            let mut total_weight = T::DbWeight::get().reads_writes(0, 0);
             let distribution_period = PaymentDistributionPeriod::<T>::get();
+            total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
             if block_number % distribution_period != 0u64 {
-                total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
                 return total_weight;
             }
-
+            let existential_deposit = T::ExistentialDeposit::get();
             let pool_address = PaymentPoolAddress::<T>::get();
-            let mut pool_balance = <T as crate::Config>::Currency::free_balance(&pool_address);
-            let module_weight_percentages: BTreeMap<u64, Perbill> = ModuleUsageWeights::<T>
-                ::iter()
-                .map(|(module_id, module_weight)| (
-                    module_id,
-                    Perbill::from_rational(u32::from(module_weight), u32::from(u16::MAX)),
-                ))
-                .collect();
+            let pool_balance = <T as crate::Config>::Currency
+                ::free_balance(&pool_address)
+                .saturating_sub(existential_deposit);
             total_weight = total_weight.saturating_add(T::DbWeight::get().reads(3));
+
+            let module_weight_percentages: BTreeMap<
+                u64,
+                Perbill
+            > = module_weight_percentages::<T>();
+            total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
 
             pallet_modules::Modules::<T::Modules>::iter().for_each(|(module_id, module)| {
                 let module_weight_percentage = module_weight_percentages.get(&module_id);
                 match module_weight_percentage {
                     Some(percentage) => {
                         let fee_to_distribute = percentage.mul_floor(pool_balance);
+                        // println!("p: {:?};\n\tf: {:?}", percentage, fee_to_distribute);
                         let module_address = module.owner;
-                        let _ = <T as crate::Config>::Currency::transfer(
+                        let _transfer_result = <T as crate::Config>::Currency::transfer(
                             &pool_address,
                             &module_address,
                             fee_to_distribute,
-                            frame_support::traits::ExistenceRequirement::KeepAlive,
+                            frame_support::traits::ExistenceRequirement::KeepAlive
                         );
-                        pool_balance = pool_balance.saturating_sub(fee_to_distribute);
-                        total_weight = total_weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
+                        // println!("transfer_result: {:?}", transfer_result);
+                        total_weight = total_weight.saturating_add(
+                            T::DbWeight::get().reads_writes(1, 1)
+                        );
                     }
                     None => {
+                        // println!("percentage was none");
                         total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
                     }
                 }
