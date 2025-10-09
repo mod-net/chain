@@ -122,7 +122,6 @@ pub mod pallet {
                 match module_weight_percentage {
                     Some(percentage) => {
                         let fee_to_distribute = percentage.mul_floor(pool_balance);
-                        // println!("p: {:?};\n\tf: {:?}", percentage, fee_to_distribute);
                         let module_address = module.owner;
                         let _transfer_result = <T as crate::Config>::Currency::transfer(
                             &pool_address,
@@ -130,13 +129,11 @@ pub mod pallet {
                             fee_to_distribute,
                             frame_support::traits::ExistenceRequirement::KeepAlive
                         );
-                        // println!("transfer_result: {:?}", transfer_result);
                         total_weight = total_weight.saturating_add(
                             T::DbWeight::get().reads_writes(1, 1)
                         );
                     }
                     None => {
-                        // println!("percentage was none");
                         total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
                     }
                 }

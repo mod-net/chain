@@ -280,18 +280,12 @@ fn fee_distribution() {
 
         // At the distribution period, distribution should occur
         System::set_block_number(period);
-        let weight = ModulePayments::<Test>::on_initialize(period);
+        let _ = ModulePayments::<Test>::on_initialize(period);
 
-        // Check balances after distribution
-        // let total_weight: u16 = weights.iter().sum();
-        // let max = u16::MAX as u128;
         let normalized_weights = crate::normalize_weights(&weights);
         let expected_0 = normalized_weights[0];
         let expected_1 = normalized_weights[1];
         let expected_2 = normalized_weights[2];
-        // let expected_0 = max * 10u128 / total_weight as u128;
-        // let expected_1 = max * 20u128 / total_weight as u128;
-        // let expected_2 = max * 70u128 / total_weight as u128;
 
         let perbill_0 = sp_runtime::Perbill::from_rational(expected_0 as u32, u16::MAX as u32);
         let perbill_1 = sp_runtime::Perbill::from_rational(expected_1 as u32, u16::MAX as u32);
@@ -362,13 +356,5 @@ fn fee_distribution() {
         assert_eq!(bal_2_after, bal_2 + payout_1);
         assert_eq!(bal_3_after, bal_3 + payout_2);
         assert_eq!(bal_pool_after, bal_pool - distributed);
-
-        // The weight should reflect the number of modules processed
-        // 3 modules, each: 1 read for weight, 1 read/write for transfer
-        // let expected_weight = frame_support::weights::Weight::from_parts(
-        //     3_000_000_000 + 3 * (1_000_000_000 + 2_000_000_000),
-        //     0
-        // );
-        // assert_eq!(weight, expected_weight);
     });
 }
