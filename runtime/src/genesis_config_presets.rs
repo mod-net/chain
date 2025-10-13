@@ -23,6 +23,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_genesis_builder::{self, PresetId};
 use sp_keyring::Sr25519Keyring;
+use sp_core::crypto::Ss58Codec;
 
 // Returns the genesis config presets populated with given parameters.
 fn testnet_genesis(
@@ -41,14 +42,14 @@ fn testnet_genesis(
         aura: pallet_aura::GenesisConfig {
             authorities: initial_authorities
                 .iter()
-                .map(|x| x.0.clone())
-                .collect::<Vec<_>>(),
+                .map(|(a, _): &(AuraId, GrandpaId)| a.clone())
+                .collect::<Vec<AuraId>>(),
         },
         grandpa: pallet_grandpa::GenesisConfig {
             authorities: initial_authorities
                 .iter()
-                .map(|x| (x.1.clone(), 1))
-                .collect::<Vec<_>>(),
+                .map(|(_, g): &(AuraId, GrandpaId)| (g.clone(), 1))
+                .collect::<Vec<(GrandpaId, u64)>>(),
         },
         sudo: SudoConfig { key: Some(root) },
     })
@@ -60,24 +61,57 @@ fn testnet_genesis(
 /// during bootstrap. For a real public testnet, generate a chainspec JSON from this preset
 /// and replace authorities and sudo with your production testnet keys and multisig address.
 pub fn modnet_testnet_config_genesis() -> Value {
-    testnet_genesis(
-        vec![
-            (
-                sp_keyring::Sr25519Keyring::Alice.public().into(),
-                sp_keyring::Ed25519Keyring::Alice.public().into(),
-            ),
-            (
-                sp_keyring::Sr25519Keyring::Bob.public().into(),
-                sp_keyring::Ed25519Keyring::Bob.public().into(),
-            ),
-        ],
-        Sr25519Keyring::iter()
-            .filter(|v| v != &Sr25519Keyring::One && v != &Sr25519Keyring::Two)
-            .map(|v| v.to_account_id())
-            .collect::<Vec<_>>(),
-        // Temporary sudo: Alice. Replace with your multisig address in the JSON chainspec.
-        Sr25519Keyring::Alice.to_account_id(),
+    // Helper to decode SS58 string into AccountId
+    fn id(s: &str) -> AccountId { AccountId::from_ss58check(s).expect("valid ss58 address") }
+
+    // Constants in base units (12 decimals => 10^12)
+    const UNIT: u128 = 1_000_000_000_000u128;
+
+    // Authorities: use provided keys
+    let aura_id: AuraId = AuraId::from(sp_core::sr25519::Public::from_ss58check(
+        "5Fga63pnkp2JDGudFzpdWNzq5CwNgbS8EUTT36DKzKJi8L7p",
     )
+    .expect("valid sr25519 aura ss58"));
+    let grandpa_id: GrandpaId = GrandpaId::from(sp_core::ed25519::Public::from_ss58check(
+        "5HF6Koc628YWoAreCmaswgesyAdcVi1MyixPbNQEz4M3xpDm",
+    )
+    .expect("valid ed25519 grandpa ss58"));
+    let initial_authorities = vec![(aura_id, grandpa_id)];
+
+    // Specific allocations requested
+    let signatories = vec![
+        (id("5G9MCPkRmbYKvRwSog6wnfGsa474mZ7E6gyYAFjPgJMDczhq"), 100_000u128 * UNIT),
+        (id("5Fqfm4drTEfBdCmjnCSTQpxWLg82UgDP3R7zKNnqFFj2GpkY"), 100_000u128 * UNIT),
+        (id("5F27CcXGCpHE6ZLWV1Qy2EjNro9byxsAYzQT1kpjNwnGrguJ"), 100_000u128 * UNIT),
+    ];
+
+    let sudo_account = id("5GRgCZhCtC4dC2QsgxagTB4cZ7gJWEgVtMTbBTkFTVDsVTwC");
+    let sudo_allocation = (sudo_account.clone(), 10_000_000u128 * UNIT);
+
+    // Faucet allocation will be added when address is provided.
+
+    // Combine all balances (signatories + sudo)
+    let mut balances = signatories;
+    balances.push(sudo_allocation);
+
+    build_struct_json_patch!(RuntimeGenesisConfig {
+        balances: BalancesConfig {
+            balances: balances,
+        },
+        aura: pallet_aura::GenesisConfig {
+            authorities: initial_authorities
+                .iter()
+                .map(|(a, _): &(AuraId, GrandpaId)| a.clone())
+                .collect::<Vec<AuraId>>(),
+        },
+        grandpa: pallet_grandpa::GenesisConfig {
+            authorities: initial_authorities
+                .iter()
+                .map(|(_, g): &(AuraId, GrandpaId)| (g.clone(), 1))
+                .collect::<Vec<(GrandpaId, u64)>>(),
+        },
+        sudo: SudoConfig { key: Some(sudo_account) },
+    })
 }
 
 /// Return the development genesis config.

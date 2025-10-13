@@ -60,6 +60,11 @@ parameter_types! {
     pub const SS58Prefix: u8 = 42;
 }
 
+// Bridge pallet configuration
+impl pallet_bridge::Config for Runtime {
+    type WeightInfo = ();
+}
+
 /// The default types are being injected by [`derive_impl`](`frame_support::derive_impl`) from
 /// [`SoloChainDefaultConfig`](`struct@frame_system::config_preludes::SolochainDefaultConfig`),
 /// but overridden as needed.
@@ -188,9 +193,9 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MaxUserModules: u16 = u16::MAX;
+    pub const MaxModules: u64 = u64::MAX;
     pub const MaxModuleReplicants: u16 = u16::MAX;
-    pub const MaxModuleTake: Percent = Percent::from_percent(5);
+    pub const DefaultMaxModuleTake: Percent = Percent::from_percent(5);
 }
 
 /// Configure the Modules pallet for real blockchain transactions.
@@ -198,17 +203,18 @@ impl pallet_modules::Config for Runtime {
     type Currency = Balances;
     type WeightInfo = pallet_modules::weights::SubstrateWeight<Runtime>;
 
-    /// Maximum length for public keys
-    type MaxKeyLength = ConstU32<64>;
-
     /// Maximum number of Modules a single User (Account) can register
-    type MaxUserModules = MaxUserModules;
+    type MaxModules = MaxModules;
     /// Maximum number of Replicants that can be active per Module
     type MaxModuleReplicants = MaxModuleReplicants;
     /// Maximum take percentage a Module Owner can set
-    type MaxModuleTake = MaxModuleTake;
-    /// Maximum length for Module Titles (basing 78 characters on recommendations from RFC 5322)
-    type MaxModuleTitleLength = ConstU32<78>;
+    type DefaultMaxModuleTake = DefaultMaxModuleTake;
+    /// Maximum length for Module Names (basing 78 characters on recommendations from RFC 5322)
+    type MaxModuleNameLength = ConstU32<78>;
     /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
     type MaxStorageReferenceLength = ConstU32<64>;
+    /// Maximum length for URLs
+    type MaxURLLength = ConstU32<128>;
+    /// Default Module Registration Cost
+    type DefaultModuleCollateral = ConstU128<5_000_000_000>;
 }
