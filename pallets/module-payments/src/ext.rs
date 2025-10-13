@@ -6,10 +6,3 @@ pub(super) type BalanceOf<T> =
 pub(super) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 pub(super) type Block = u64;
-
-pub(super) type StorageReference<T> = Option<
-    frame_support::sp_runtime::BoundedVec<u8, <T as crate::Config>::MaxStorageReferenceLength>,
->;
-
-pub(super) type URLReference<T> =
-    Option<frame_support::sp_runtime::BoundedVec<u8, <T as crate::Config>::MaxURLLength>>;

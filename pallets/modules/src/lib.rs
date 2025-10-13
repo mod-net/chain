@@ -30,7 +30,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub mod pallet {
     use super::*;
     use frame_support::{
-        dispatch::DispatchResult, pallet_prelude::*, sp_runtime::Percent, traits::ConstU64
+        dispatch::DispatchResult, pallet_prelude::*, sp_runtime::Percent, traits::ConstU64,
     };
     use frame_system::{ensure_signed, pallet_prelude::*};
     extern crate alloc;
@@ -42,6 +42,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// A type representing the weights required by the extrinsics of this pallet.
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type WeightInfo: WeightInfo;
         type Currency: Currency<Self::AccountId, Balance = u128>
             + LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>>
@@ -74,36 +75,18 @@ pub mod pallet {
     }
 
     #[pallet::storage]
-    pub type MaxModuleTake<T: Config> = StorageValue<
-        _,
-        Percent,
-        ValueQuery,
-        T::DefaultMaxModuleTake
-    >;
+    pub type MaxModuleTake<T: Config> =
+        StorageValue<_, Percent, ValueQuery, T::DefaultMaxModuleTake>;
 
     #[pallet::storage]
-    pub type ModuleCollateral<T: Config> = StorageValue<
-        _,
-        BalanceOf<T>,
-        ValueQuery,
-        T::DefaultModuleCollateral
-    >;
+    pub type ModuleCollateral<T: Config> =
+        StorageValue<_, BalanceOf<T>, ValueQuery, T::DefaultModuleCollateral>;
 
     #[pallet::storage]
-    pub type Modules<T: Config> = StorageMap<
-        _,
-        Identity,
-        u64,
-        module::Module<T>
-    >;
+    pub type Modules<T: Config> = StorageMap<_, Identity, u64, module::Module<T>>;
 
     #[pallet::storage]
-    pub type NextModule<T: Config> = StorageValue<
-        _,
-        u64,
-        ValueQuery,
-        ConstU64<0>,
-    >;
+    pub type NextModule<T: Config> = StorageValue<_, u64, ValueQuery, ConstU64<0>>;
 
     /// Events emitted by this pallet.
     #[pallet::event]
@@ -148,6 +131,10 @@ pub mod pallet {
             /// The ID of the module
             id: u64,
         },
+        ModuleTierChanged {
+            id: u64,
+            tier: module::ModuleTier,
+        },
     }
 
     /// Errors that can be returned by this pallet.
@@ -179,7 +166,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
-        #[pallet::weight({0})]
+        #[pallet::weight(T::WeightInfo::register_module())]
         pub fn register_module(
             origin: OriginFor<T>,
             name: module::ModuleName<T>,
@@ -192,17 +179,14 @@ pub mod pallet {
         }
 
         #[pallet::call_index(1)]
-        #[pallet::weight({0})]
-        pub fn remove_module(
-            origin: OriginFor<T>,
-            id: u64,
-        ) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::remove_module())]
+        pub fn remove_module(origin: OriginFor<T>, id: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
             module::remove::<T>(who, id)
         }
 
         #[pallet::call_index(2)]
-        #[pallet::weight({0})]
+        #[pallet::weight(T::WeightInfo::update_module())]
         pub fn update_module(
             origin: OriginFor<T>,
             id: u64,
@@ -213,6 +197,19 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             module::update::<T>(who, id, name, data, url, take)
+        }
+
+        // TODO: link into voting mechanisms that check for prev usage
+        /// Changes the module tier to the specified tier
+        #[pallet::call_index(3)]
+        #[pallet::weight({0})]
+        pub fn change_module_tier(
+            origin: OriginFor<T>,
+            id: u64,
+            tier: module::ModuleTier,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+            module::change_tier::<T>(id, tier)
         }
     }
 }

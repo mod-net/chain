@@ -1,12 +1,14 @@
-use crate as pallet_modules;
+use crate as pallet_module_payments;
 use frame_support::{
     derive_impl, parameter_types,
-    traits::{ConstU128, ConstU16, ConstU32, ConstU64, VariantCountOf},
+    traits::{ConstU128, ConstU16, ConstU32, ConstU64, Get, VariantCountOf},
+    weights::constants::RocksDbWeight,
+    PalletId,
 };
 use sp_core::H256;
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
-    BuildStorage, Percent,
+    BuildStorage, Perbill, Percent,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -23,7 +25,8 @@ frame_support::construct_runtime!(
     {
         System: frame_system,
         Balances: pallet_balances,
-        ModuleRegistry: pallet_modules,
+        ModulesPallet: pallet_modules,
+        ModulePayments: pallet_module_payments,
     }
 );
 
@@ -32,7 +35,7 @@ impl frame_system::Config for Test {
     type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = ();
     type BlockLength = ();
-    type DbWeight = ();
+    type DbWeight = RocksDbWeight;
     type RuntimeOrigin = RuntimeOrigin;
     type RuntimeCall = RuntimeCall;
     type Nonce = u64;
@@ -54,7 +57,9 @@ impl frame_system::Config for Test {
     type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig as pallet_balances::DefaultConfig)]
+#[derive_impl(
+    pallet_balances::config_preludes::TestDefaultConfig as pallet_balances::DefaultConfig
+)]
 impl pallet_balances::Config for Test {
     type MaxLocks = ConstU32<50>;
     type MaxReserves = ConstU32<50>;
@@ -76,7 +81,7 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
     // Keep small to test MaxModulesReached edge case easily.
-    pub const MaxModules: u64 = 3;
+    pub const MaxModules: u64 = 10;
     pub const MaxModuleReplicants: u16 = u16::MAX;
     pub const DefaultMaxModuleTake: Percent = Percent::from_percent(5);
     pub const MaxModuleNameLength: u32 = 78;
@@ -99,6 +104,32 @@ impl pallet_modules::Config for Test {
     type DefaultModuleCollateral = DefaultModuleCollateral;
 }
 
+parameter_types! {
+    pub const DefaultModulePaymentFee: Perbill = Perbill::from_perthousand(25); // 2.5%
+}
+
+pub const MODNET_PAYMENTS_PALLET_ID: PalletId = PalletId(*b"modnet00");
+pub struct ModnetPaymentsPalletId;
+impl Get<PalletId> for ModnetPaymentsPalletId {
+    fn get() -> PalletId {
+        MODNET_PAYMENTS_PALLET_ID
+    }
+}
+
+impl pallet_module_payments::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
+    type Currency = Balances;
+    type Modules = Test;
+
+    type PalletId = ModnetPaymentsPalletId;
+
+    type DefaultModulePaymentFee = DefaultModulePaymentFee;
+    type DefaultPaymentDistributionPeriod = ConstU64<25>;
+    type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
+    type MaxModules = MaxModules;
+}
+
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::<Test>::default()
@@ -106,14 +137,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .unwrap();
 
     // Endow some accounts with ample balance for reservation tests.
-    pallet_balances::GenesisConfig::<Test> {
+    (pallet_balances::GenesisConfig::<Test> {
         balances: vec![
             (1, 10_000_000_000_000),
             (2, 10_000_000_000_000),
             (3, 10_000_000_000_000),
         ],
         dev_accounts: Default::default(),
-    }
+    })
     .assimilate_storage(&mut t)
     .unwrap();
 
