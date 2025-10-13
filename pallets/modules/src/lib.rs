@@ -86,6 +86,9 @@ pub mod pallet {
     pub type Modules<T: Config> = StorageMap<_, Identity, u64, module::Module<T>>;
 
     #[pallet::storage]
+    pub type ModuleCount<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+    #[pallet::storage]
     pub type NextModule<T: Config> = StorageValue<_, u64, ValueQuery, ConstU64<0>>;
 
     /// Events emitted by this pallet.

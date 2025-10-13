@@ -16,6 +16,16 @@ pub fn register<T: crate::Config>(
 ) -> DispatchResult {
     Module::<T>::validate_name(&name[..])?;
 
+    let current_count = crate::ModuleCount::<T>::get();
+    ensure!(
+        current_count < <T as crate::Config>::MaxModules::get(),
+        crate::Error::<T>::MaxModulesReached
+    );
+
+    let take = take.unwrap_or(Percent::zero());
+    let max_take = crate::MaxModuleTake::<T>::get();
+    ensure!(take <= max_take, crate::Error::<T>::MaxTakeExceeded);
+
     let collateral = crate::ModuleCollateral::<T>::get();
     <T as crate::Config>::Currency::reserve(&origin, collateral)?;
 
@@ -25,15 +35,6 @@ pub fn register<T: crate::Config>(
         .expect("Blocks will not exceed u64 maximum.");
 
     let next_module_id = crate::NextModule::<T>::get();
-    // TODO: Make MaxModules check against actual modules in registry instead of index
-    ensure!(
-        next_module_id.saturating_add(1) != <T as crate::Config>::MaxModules::get(),
-        crate::Error::<T>::MaxModulesReached
-    );
-
-    let take = take.unwrap_or(Percent::zero());
-    let max_take = crate::MaxModuleTake::<T>::get();
-    ensure!(take <= max_take, crate::Error::<T>::MaxTakeExceeded);
 
     crate::Modules::<T>::insert(
         next_module_id,
@@ -50,6 +51,8 @@ pub fn register<T: crate::Config>(
             last_updated: current_block,
         },
     );
+
+    crate::ModuleCount::<T>::put(current_count.saturating_add(1));
 
     crate::NextModule::<T>::mutate(|v| {
         *v = v.saturating_add(1);
@@ -80,6 +83,10 @@ pub fn remove<T: crate::Config>(origin: AccountIdOf<T>, id: u64) -> DispatchResu
             <T as crate::Config>::Currency::unreserve(&origin, collateral);
 
             crate::Modules::<T>::remove(&id);
+
+            crate::ModuleCount::<T>::mutate(|count| {
+                *count = count.saturating_sub(1);
+            });
 
             crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleRemoved { who: origin, id });
 
@@ -120,7 +127,7 @@ pub fn update<T: crate::Config>(
                 module.name = new_name.clone();
                 module.data = new_data.clone();
                 module.url = new_url.clone();
-                module.take = new_take.clone();
+                module.take = new_take;
                 module.last_updated = current_block;
 
                 crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleUpdated {

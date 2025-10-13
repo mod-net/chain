@@ -58,6 +58,8 @@ fn register_module_emits_event_and_updates_storage() {
             None
         ));
 
+        assert_eq!(crate::ModuleCount::<Test>::get(), 1);
+
         // event: find the ModuleRegistered event among all runtime events
         let events = System::events();
         let ev = events
@@ -145,6 +147,7 @@ fn register_module_reserves_collateral_and_remove_unreserves() {
         ));
         assert_eq!(Balances::reserved_balance(&who), 0);
         assert_eq!(Balances::free_balance(&who), before_free);
+        assert_eq!(crate::ModuleCount::<Test>::get(), 0);
     });
 }
 
@@ -371,7 +374,7 @@ fn remove_module_checks_ownership_and_existence() {
 #[test]
 fn max_modules_reached() {
     new_test_ext().execute_with(|| {
-        // MaxModules set to 3 in mock. We allow ids 0,1 then the check rejects when next id plus 1 equals limit.
+        // MaxModules set to 3 in mock. Allow ids 0,1,2 then reject further registrations.
         assert_ok!(ModuleRegistry::<Test>::register_module(
             RuntimeOrigin::signed(1),
             bv(b"a"),
@@ -386,13 +389,20 @@ fn max_modules_reached() {
             url(b"u2"),
             None
         ));
-        // Next is 2, saturating_add(1) == 3 which equals MaxModules -> error
+        assert_ok!(ModuleRegistry::<Test>::register_module(
+            RuntimeOrigin::signed(3),
+            bv(b"c"),
+            sr(b"z"),
+            url(b"u3"),
+            None
+        ));
+        assert_eq!(crate::ModuleCount::<Test>::get(), 3);
         assert_noop!(
             ModuleRegistry::<Test>::register_module(
-                RuntimeOrigin::signed(3),
-                bv(b"c"),
-                sr(b"z"),
-                url(b"u3"),
+                RuntimeOrigin::signed(4),
+                bv(b"d"),
+                sr(b"w"),
+                url(b"u4"),
                 None
             ),
             Error::<Test>::MaxModulesReached

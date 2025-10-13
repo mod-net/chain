@@ -1,4 +1,4 @@
-use crate::{mock::*, Error, Event, ModuleUsageWeights, Pallet as ModulePayments, PaymentReport};
+use crate::{mock::*, Error, Event, Pallet as ModulePayments, PaymentReport};
 use frame_support::{
     assert_noop, assert_ok, sp_runtime::traits::Get, weights::constants::RocksDbWeight, BoundedVec,
 };
@@ -299,88 +299,120 @@ fn fee_distribution() {
             block_number += 1;
         }
 
-        // At the distribution period, distribution should occur
+        // At the distribution period, distribution should occur but only up to the per-block limit
         System::set_block_number(period);
         let weight = ModulePayments::<Test>::on_initialize(period);
-        // The weight should reflect the number of modules processed
-        let expected_weight = RocksDbWeight::get().reads_writes(8, 3);
+        let expected_weight = RocksDbWeight::get().reads_writes(3, 3);
         assert_eq!(weight, expected_weight);
-        println!("runtime: weight: {:?};\texpected: {:?}", weight, expected_weight);
 
-        // Check balances after distribution
         let normalized_weights = crate::normalize_weights(&weights);
-        let expected_0 = normalized_weights[0];
-        let expected_1 = normalized_weights[1];
-        let expected_2 = normalized_weights[2];
+        let perbill_0 = sp_runtime::Perbill::from_rational(normalized_weights[0] as u32, u16::MAX as u32);
+        let perbill_1 = sp_runtime::Perbill::from_rational(normalized_weights[1] as u32, u16::MAX as u32);
+        let perbill_2 = sp_runtime::Perbill::from_rational(normalized_weights[2] as u32, u16::MAX as u32);
 
-        let perbill_0 = sp_runtime::Perbill::from_rational(expected_0 as u32, u16::MAX as u32);
-        let perbill_1 = sp_runtime::Perbill::from_rational(expected_1 as u32, u16::MAX as u32);
-        let perbill_2 = sp_runtime::Perbill::from_rational(expected_2 as u32, u16::MAX as u32);
+        // First block processes two modules
+        let payout_first_0 = perbill_0.mul_floor(bal_pool);
+        let payout_first_1 = perbill_1.mul_floor(bal_pool);
 
-        let payout_0 = perbill_0.mul_floor(bal_pool);
-        let payout_1 = perbill_1.mul_floor(bal_pool);
-        let payout_2 = perbill_2.mul_floor(bal_pool);
-        let distributed = payout_0 + payout_1 + payout_2;
-        assert!(distributed <= bal_pool);
+        let cursor_after_first = crate::PendingPayoutCursor::<Test>::get();
+        assert_eq!(cursor_after_first, Some(2));
 
-        // The pool should be drained by the distributed amount (modulo rounding)
-        let bal_1_after = Balances::free_balance(&1u64);
-        let bal_2_after = Balances::free_balance(&2u64);
-        let bal_3_after = Balances::free_balance(&3u64);
-        let bal_pool_after = Balances::free_balance(&pool_address).saturating_sub(
-            existential_deposit
-        );
+        let bal_1_after_first = Balances::free_balance(&1u64);
+        let bal_2_after_first = Balances::free_balance(&2u64);
+        let bal_3_after_first = Balances::free_balance(&3u64);
+        let bal_pool_after_first = Balances::free_balance(&pool_address)
+            .saturating_sub(existential_deposit);
 
-        let system_weights = crate::ModuleUsageWeights::<Test>::iter().collect::<Vec<(u64, u16)>>();
-        println!("pool_address: {:?}", pool_address);
-        println!(
-            "weights: {:?};\tnormalized: {:?}, system: {:?}",
-            weights,
-            normalized_weights,
-            system_weights
-        );
-        println!(
-            "bal_pool: {:?};\tbal_pool_after: {:?};\tchange: {:?}",
-            bal_pool,
-            bal_pool_after,
-            bal_pool - bal_pool_after
-        );
-        println!(
-            "perbill_0: {:?};\t\tpayout_0: {:?};\tbal_1: {:?};\tbal_1_after: {:?}\texpected_bal_1_after: {:?};\tpool_bal: {:?}",
-            perbill_0,
-            payout_0,
-            bal_1,
-            bal_1_after,
-            bal_1 + payout_0,
-            pool_balance.saturating_sub(payout_0)
-        );
-        println!(
-            "perbill_1: {:?};\t\t\tpayout_1: {:?};\tbal_2: {:?};\tbal_2_after: {:?}\texpected_bal_2_after: {:?};\tpool_bal: {:?}",
-            perbill_1,
-            payout_1,
-            bal_2,
-            bal_2_after,
-            bal_2 + payout_1,
-            pool_balance.saturating_sub(payout_0).saturating_sub(payout_1)
-        );
-        println!(
-            "perbill_2: {:?};\t\tpayout_2: {:?};\tbal_3: {:?};\tbal_3_after: {:?}\texpected_bal_3_after: {:?};\tpool_bal: {:?}",
-            perbill_2,
-            payout_2,
-            bal_3,
-            bal_3_after,
-            bal_3 + payout_2,
-            pool_balance.saturating_sub(payout_0).saturating_sub(payout_1).saturating_sub(payout_2)
-        );
-        println!(
-            "expected distribution of {:?} compared to {:?}",
-            distributed,
-            bal_pool - bal_pool_after
-        );
+        assert_eq!(bal_1_after_first, bal_1 + payout_first_0);
+        assert_eq!(bal_2_after_first, bal_2 + payout_first_1);
+        assert_eq!(bal_3_after_first, bal_3);
+        assert_eq!(bal_pool_after_first, bal_pool - payout_first_0 - payout_first_1);
 
-        assert_eq!(bal_1_after, bal_1 + payout_0);
-        assert_eq!(bal_2_after, bal_2 + payout_1);
-        assert_eq!(bal_3_after, bal_3 + payout_2);
-        assert_eq!(bal_pool_after, bal_pool - distributed);
+        // Next block completes the remaining payouts
+        System::set_block_number(period + 1);
+        ModulePayments::<Test>::on_initialize(period + 1);
+
+        let cursor_after_second = crate::PendingPayoutCursor::<Test>::get();
+        assert_eq!(cursor_after_second, None);
+
+        let payout_second_2 = perbill_2.mul_floor(bal_pool_after_first);
+
+        let bal_1_final = Balances::free_balance(&1u64);
+        let bal_2_final = Balances::free_balance(&2u64);
+        let bal_3_final = Balances::free_balance(&3u64);
+        let bal_pool_final = Balances::free_balance(&pool_address)
+            .saturating_sub(existential_deposit);
+
+        assert_eq!(bal_1_final, bal_1_after_first);
+        assert_eq!(bal_2_final, bal_2_after_first);
+        assert_eq!(bal_3_final, bal_3 + payout_second_2);
+        assert_eq!(bal_pool_final, bal_pool_after_first - payout_second_2);
+    });
+}
+
+#[test]
+fn payouts_respect_max_per_block() {
+    use frame_support::traits::{Currency, Hooks};
+
+    new_test_ext().execute_with(|| {
+        // Register modules
+        for (id, owner) in (0u64..4).zip([1u64, 2u64, 3u64, 4u64].into_iter()) {
+            assert_ok!(pallet_modules::Pallet::<Test>::register_module(
+                RuntimeOrigin::signed(owner),
+                bv(format!("module-{id}").as_bytes()),
+                None,
+                None,
+                None
+            ));
+        }
+
+        // Authorize module 0
+        assert_ok!(ModulePayments::<Test>::set_authorized_module(RuntimeOrigin::root(), 0));
+
+        // Assign equal weights to four modules
+        let module_ids = vec![0u64, 1u64, 2u64, 3u64];
+        let weights = vec![u16::MAX / 4; 4];
+        assert_ok!(ModulePayments::<Test>::set_module_weights(
+            RuntimeOrigin::signed(1u64),
+            module_ids.clone(),
+            weights.clone()
+        ));
+
+        // Seed payment pool
+        let pool_address = crate::PaymentPoolAddress::<Test>::get();
+        let initial_pool = 1_000_000_000_000u128;
+        drop(<Test as crate::Config>::Currency::deposit_creating(&pool_address, initial_pool));
+
+        // Capture initial balances
+        let mut balances_before = [0u128; 5];
+        for account in 1u64..=4u64 {
+            balances_before[account as usize] = Balances::free_balance(&account);
+        }
+
+        // Trigger payout cycle at distribution period
+        let period = crate::PaymentDistributionPeriod::<Test>::get();
+        System::set_block_number(period);
+        ModulePayments::<Test>::on_initialize(period);
+
+        // After first block only two modules processed due to MaxPayoutsPerBlock = 2
+        let cursor_after_first = crate::PendingPayoutCursor::<Test>::get();
+        assert_eq!(cursor_after_first, Some(2));
+
+        // Balances for first two owners should increase
+        for account in [1u64, 2u64] {
+            assert!(Balances::free_balance(&account) > balances_before[account as usize]);
+        }
+        for account in [3u64, 4u64] {
+            assert_eq!(Balances::free_balance(&account), balances_before[account as usize]);
+        }
+
+        // Next block processes remaining queue regardless of distribution period alignment
+        System::set_block_number(period + 1);
+        ModulePayments::<Test>::on_initialize(period + 1);
+
+        assert_eq!(crate::PendingPayoutCursor::<Test>::get(), None);
+        for account in [3u64, 4u64] {
+            assert!(Balances::free_balance(&account) > balances_before[account as usize]);
+        }
     });
 }
