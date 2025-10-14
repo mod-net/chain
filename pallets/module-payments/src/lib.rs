@@ -75,6 +75,9 @@ pub mod pallet {
 
         #[pallet::constant]
         type MaxModules: Get<u64>;
+
+        #[pallet::constant]
+        type MaxPayoutsPerBlock: Get<u32>;
     }
 
     fn module_weight_percentages<T: Config>() -> BTreeMap<u64, Perbill> {
@@ -88,6 +91,9 @@ pub mod pallet {
             .collect()
     }
 
+    #[pallet::storage]
+    pub type PendingPayoutCursor<T: Config> = StorageValue<_, Option<u64>, ValueQuery>;
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(block_number: BlockNumberFor<T>) -> Weight {
@@ -95,43 +101,95 @@ pub mod pallet {
                 .try_into()
                 .ok()
                 .expect("Blocks will never exceed u64 maximum.");
-            // let mut total_weight = Weight::zero();
-            let mut total_weight = T::DbWeight::get().reads_writes(0, 0);
+
+            let db_weight = T::DbWeight::get();
+            let mut total_weight = db_weight.reads_writes(0, 0);
+
+            let cursor = PendingPayoutCursor::<T>::get();
+            total_weight = total_weight.saturating_add(db_weight.reads(1));
+
             let distribution_period = PaymentDistributionPeriod::<T>::get();
-            total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
-            if block_number % distribution_period != 0u64 {
+            total_weight = total_weight.saturating_add(db_weight.reads(1));
+
+            let start_index = match cursor {
+                Some(index) => index,
+                None => {
+                    if block_number % distribution_period != 0u64 {
+                        return total_weight;
+                    }
+                    0
+                }
+            };
+
+            let mut module_ids: Vec<u64> =
+                pallet_modules::Modules::<T::Modules>::iter_keys().collect();
+            module_ids.sort_unstable();
+            total_weight = total_weight.saturating_add(db_weight.reads(module_ids.len() as u64));
+
+            if module_ids.is_empty() {
+                PendingPayoutCursor::<T>::put(None::<u64>);
+                total_weight = total_weight.saturating_add(db_weight.writes(1));
                 return total_weight;
             }
+
+            let start_index_usize: usize = match usize::try_from(start_index) {
+                Ok(idx) => idx,
+                Err(_) => {
+                    PendingPayoutCursor::<T>::put(None::<u64>);
+                    total_weight = total_weight.saturating_add(db_weight.writes(1));
+                    return total_weight;
+                }
+            };
+
+            if start_index_usize >= module_ids.len() {
+                PendingPayoutCursor::<T>::put(None::<u64>);
+                total_weight = total_weight.saturating_add(db_weight.writes(1));
+                return total_weight;
+            }
+
+            let limit = core::cmp::max(1, T::MaxPayoutsPerBlock::get()) as usize;
+
             let existential_deposit = T::ExistentialDeposit::get();
             let pool_address = PaymentPoolAddress::<T>::get();
             let pool_balance = <T as crate::Config>::Currency::free_balance(&pool_address)
                 .saturating_sub(existential_deposit);
-            total_weight = total_weight.saturating_add(T::DbWeight::get().reads(3));
+            total_weight = total_weight.saturating_add(db_weight.reads(2));
 
             let module_weight_percentages: BTreeMap<u64, Perbill> =
                 module_weight_percentages::<T>();
-            total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
+            total_weight = total_weight
+                .saturating_add(db_weight.reads(module_weight_percentages.len() as u64));
 
-            pallet_modules::Modules::<T::Modules>::iter().for_each(|(module_id, module)| {
-                let module_weight_percentage = module_weight_percentages.get(&module_id);
-                match module_weight_percentage {
-                    Some(percentage) => {
+            let mut processed = 0usize;
+
+            for module_id in module_ids.iter().skip(start_index_usize).take(limit) {
+                total_weight = total_weight.saturating_add(db_weight.reads(1));
+                if let Some(module) = pallet_modules::Modules::<T::Modules>::get(module_id) {
+                    total_weight = total_weight.saturating_add(db_weight.reads(1));
+                    if let Some(percentage) = module_weight_percentages.get(module_id) {
                         let fee_to_distribute = percentage.mul_floor(pool_balance);
-                        let module_address = module.owner;
-                        let _transfer_result = <T as crate::Config>::Currency::transfer(
-                            &pool_address,
-                            &module_address,
-                            fee_to_distribute,
-                            frame_support::traits::ExistenceRequirement::KeepAlive,
-                        );
-                        total_weight =
-                            total_weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
-                    }
-                    None => {
-                        total_weight = total_weight.saturating_add(T::DbWeight::get().reads(1));
+                        if fee_to_distribute > 0 {
+                            let _ = <T as crate::Config>::Currency::transfer(
+                                &pool_address,
+                                &module.owner,
+                                fee_to_distribute,
+                                frame_support::traits::ExistenceRequirement::KeepAlive,
+                            );
+                            total_weight = total_weight.saturating_add(db_weight.writes(1));
+                        }
                     }
                 }
-            });
+                processed += 1;
+            }
+
+            let next_cursor = if start_index_usize + processed < module_ids.len() {
+                Some((start_index_usize + processed) as u64)
+            } else {
+                None
+            };
+
+            PendingPayoutCursor::<T>::put(next_cursor);
+            total_weight = total_weight.saturating_add(db_weight.writes(1));
 
             total_weight
         }

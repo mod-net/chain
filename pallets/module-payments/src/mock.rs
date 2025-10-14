@@ -88,6 +88,7 @@ parameter_types! {
     pub const MaxStorageReferenceLength: u32 = 128;
     pub const MaxURLReferenceLength: u32 = 128;
     pub const DefaultModuleCollateral: u128 = 5_000_000_000;
+    pub const MaxPayoutsPerBlock: u32 = 2;
 }
 
 impl pallet_modules::Config for Test {
@@ -128,6 +129,7 @@ impl pallet_module_payments::Config for Test {
     type DefaultPaymentDistributionPeriod = ConstU64<25>;
     type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
     type MaxModules = MaxModules;
+    type MaxPayoutsPerBlock = MaxPayoutsPerBlock;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -142,6 +144,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
             (1, 10_000_000_000_000),
             (2, 10_000_000_000_000),
             (3, 10_000_000_000_000),
+            (4, 10_000_000_000_000),
         ],
         dev_accounts: Default::default(),
     })

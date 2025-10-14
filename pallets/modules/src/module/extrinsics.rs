@@ -16,6 +16,20 @@ pub fn register<T: crate::Config>(
 ) -> DispatchResult {
     Module::<T>::validate_name(&name[..])?;
 
+    let current_count = crate::ModuleCount::<T>::get();
+    ensure!(
+        current_count < <T as crate::Config>::MaxModules::get(),
+        crate::Error::<T>::MaxModulesReached
+    );
+
+    let new_count = current_count
+        .checked_add(1)
+        .ok_or(crate::Error::<T>::ModuleCountOverflow)?;
+
+    let take = take.unwrap_or(Percent::zero());
+    let max_take = crate::MaxModuleTake::<T>::get();
+    ensure!(take <= max_take, crate::Error::<T>::MaxTakeExceeded);
+
     let collateral = crate::ModuleCollateral::<T>::get();
     <T as crate::Config>::Currency::reserve(&origin, collateral)?;
 
@@ -25,19 +39,13 @@ pub fn register<T: crate::Config>(
         .expect("Blocks will not exceed u64 maximum.");
 
     let next_module_id = crate::NextModule::<T>::get();
-    // TODO: Make MaxModules check against actual modules in registry instead of index
-    ensure!(
-        next_module_id.saturating_add(1) != <T as crate::Config>::MaxModules::get(),
-        crate::Error::<T>::MaxModulesReached
-    );
 
-    let take = take.unwrap_or(Percent::zero());
-    let max_take = crate::MaxModuleTake::<T>::get();
-    ensure!(take <= max_take, crate::Error::<T>::MaxTakeExceeded);
-
-    crate::Modules::<T>::insert(
-        next_module_id,
-        Module {
+    if let Err(err) = crate::Modules::<T>::try_mutate(&next_module_id, |maybe_module| {
+        ensure!(
+            maybe_module.is_none(),
+            crate::Error::<T>::ModuleAlreadyExists
+        );
+        *maybe_module = Some(Module {
             owner: origin.clone(),
             id: next_module_id,
             name: name.clone(),
@@ -48,12 +56,26 @@ pub fn register<T: crate::Config>(
             tier: ModuleTier::Unapproved,
             created_at: current_block,
             last_updated: current_block,
-        },
-    );
+        });
+        Ok(())
+    }) {
+        <T as crate::Config>::Currency::unreserve(&origin, collateral);
+        return Err(err);
+    }
 
-    crate::NextModule::<T>::mutate(|v| {
-        *v = v.saturating_add(1);
-    });
+    crate::ModuleCount::<T>::put(new_count);
+
+    if let Err(err) = crate::NextModule::<T>::try_mutate(|v| -> DispatchResult {
+        *v = v
+            .checked_add(1)
+            .ok_or(crate::Error::<T>::ModuleIdOverflow)?;
+        Ok(())
+    }) {
+        crate::Modules::<T>::remove(&next_module_id);
+        crate::ModuleCount::<T>::put(current_count);
+        <T as crate::Config>::Currency::unreserve(&origin, collateral);
+        return Err(err);
+    }
 
     crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleRegistered {
         who: origin,
@@ -80,6 +102,12 @@ pub fn remove<T: crate::Config>(origin: AccountIdOf<T>, id: u64) -> DispatchResu
             <T as crate::Config>::Currency::unreserve(&origin, collateral);
 
             crate::Modules::<T>::remove(&id);
+
+            crate::ModuleCount::<T>::try_mutate(|count| -> DispatchResult {
+                ensure!(*count > 0, crate::Error::<T>::ModuleCountUnderflow);
+                *count -= 1;
+                Ok(())
+            })?;
 
             crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleRemoved { who: origin, id });
 
@@ -120,7 +148,7 @@ pub fn update<T: crate::Config>(
                 module.name = new_name.clone();
                 module.data = new_data.clone();
                 module.url = new_url.clone();
-                module.take = new_take.clone();
+                module.take = new_take;
                 module.last_updated = current_block;
 
                 crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleUpdated {

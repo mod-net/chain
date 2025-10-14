@@ -86,6 +86,9 @@ pub mod pallet {
     pub type Modules<T: Config> = StorageMap<_, Identity, u64, module::Module<T>>;
 
     #[pallet::storage]
+    pub type ModuleCount<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+    #[pallet::storage]
     pub type NextModule<T: Config> = StorageValue<_, u64, ValueQuery, ConstU64<0>>;
 
     /// Events emitted by this pallet.
@@ -160,6 +163,14 @@ pub mod pallet {
         ModuleNotFound,
         /// The module is not owned by the caller
         ModuleOwnership,
+        /// Module ID already has an associated entry.
+        ModuleAlreadyExists,
+        /// Next module identifier exceeded the representable range.
+        ModuleIdOverflow,
+        /// Module count would exceed its representable range.
+        ModuleCountOverflow,
+        /// Module count would drop below zero.
+        ModuleCountUnderflow,
     }
 
     /// Dispatchable functions for the module registry pallet.

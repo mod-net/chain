@@ -238,5 +238,6 @@ impl pallet_module_payments::Config for Runtime {
     type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
     type DefaultModulePaymentFee = DefaultModulePaymentFee;
     type DefaultPaymentDistributionPeriod = ConstU64<25>;
+    type MaxPayoutsPerBlock = ConstU32<100>;
     type MaxModules = MaxModules;
 }
