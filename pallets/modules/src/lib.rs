@@ -163,6 +163,14 @@ pub mod pallet {
         ModuleNotFound,
         /// The module is not owned by the caller
         ModuleOwnership,
+        /// Module ID already has an associated entry.
+        ModuleAlreadyExists,
+        /// Next module identifier exceeded the representable range.
+        ModuleIdOverflow,
+        /// Module count would exceed its representable range.
+        ModuleCountOverflow,
+        /// Module count would drop below zero.
+        ModuleCountUnderflow,
     }
 
     /// Dispatchable functions for the module registry pallet.

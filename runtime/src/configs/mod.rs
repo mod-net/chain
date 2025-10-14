@@ -241,4 +241,3 @@ impl pallet_module_payments::Config for Runtime {
     type MaxPayoutsPerBlock = ConstU32<100>;
     type MaxModules = MaxModules;
 }
-

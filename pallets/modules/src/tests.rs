@@ -407,6 +407,7 @@ fn max_modules_reached() {
             ),
             Error::<Test>::MaxModulesReached
         );
+        assert_eq!(crate::ModuleCount::<Test>::get(), 3);
     });
 }
 

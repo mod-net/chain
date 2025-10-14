@@ -22,6 +22,10 @@ pub fn register<T: crate::Config>(
         crate::Error::<T>::MaxModulesReached
     );
 
+    let new_count = current_count
+        .checked_add(1)
+        .ok_or(crate::Error::<T>::ModuleCountOverflow)?;
+
     let take = take.unwrap_or(Percent::zero());
     let max_take = crate::MaxModuleTake::<T>::get();
     ensure!(take <= max_take, crate::Error::<T>::MaxTakeExceeded);
@@ -36,9 +40,12 @@ pub fn register<T: crate::Config>(
 
     let next_module_id = crate::NextModule::<T>::get();
 
-    crate::Modules::<T>::insert(
-        next_module_id,
-        Module {
+    if let Err(err) = crate::Modules::<T>::try_mutate(&next_module_id, |maybe_module| {
+        ensure!(
+            maybe_module.is_none(),
+            crate::Error::<T>::ModuleAlreadyExists
+        );
+        *maybe_module = Some(Module {
             owner: origin.clone(),
             id: next_module_id,
             name: name.clone(),
@@ -49,14 +56,26 @@ pub fn register<T: crate::Config>(
             tier: ModuleTier::Unapproved,
             created_at: current_block,
             last_updated: current_block,
-        },
-    );
+        });
+        Ok(())
+    }) {
+        <T as crate::Config>::Currency::unreserve(&origin, collateral);
+        return Err(err);
+    }
 
-    crate::ModuleCount::<T>::put(current_count.saturating_add(1));
+    crate::ModuleCount::<T>::put(new_count);
 
-    crate::NextModule::<T>::mutate(|v| {
-        *v = v.saturating_add(1);
-    });
+    if let Err(err) = crate::NextModule::<T>::try_mutate(|v| -> DispatchResult {
+        *v = v
+            .checked_add(1)
+            .ok_or(crate::Error::<T>::ModuleIdOverflow)?;
+        Ok(())
+    }) {
+        crate::Modules::<T>::remove(&next_module_id);
+        crate::ModuleCount::<T>::put(current_count);
+        <T as crate::Config>::Currency::unreserve(&origin, collateral);
+        return Err(err);
+    }
 
     crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleRegistered {
         who: origin,
@@ -84,9 +103,11 @@ pub fn remove<T: crate::Config>(origin: AccountIdOf<T>, id: u64) -> DispatchResu
 
             crate::Modules::<T>::remove(&id);
 
-            crate::ModuleCount::<T>::mutate(|count| {
-                *count = count.saturating_sub(1);
-            });
+            crate::ModuleCount::<T>::try_mutate(|count| -> DispatchResult {
+                ensure!(*count > 0, crate::Error::<T>::ModuleCountUnderflow);
+                *count -= 1;
+                Ok(())
+            })?;
 
             crate::Pallet::<T>::deposit_event(crate::Event::<T>::ModuleRemoved { who: origin, id });
 
