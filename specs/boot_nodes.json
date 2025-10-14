@@ -1,0 +1,9 @@
+{
+        "validator-1": "/dns/validator-1-comai.ngrok.dev/tcp/30331/p2p/12D3KooWFz6hGhcNJJFmNxC7UN7UN5JHAich7mJ6xWPiGN35wLGG",
+        "validator-2": "/dns/validator-2-comai.ngrok.dev/tcp/30332/p2p/12D3KooWCdJb9XGfLDwMEB31uF78T7TgYFKXh9tHhFoeVtnj2F7M",
+        "validator-3": "/dns/validator-3-comai.ngrok.dev/tcp/30333/p2p/12D3KooWBo9pQTrgrxiRw9CiBEygNKhjvE5xmm7Vuqx1LF2JWLVA",
+        "full-1": "/dns/full-1-comai.ngrok.dev/tcp/30334/p2p/12D3KooWDqmp23iJcC8GBPF87ZMhrezHzMwuA1MyoC3dFJbESTAg",
+        "full-2": "/dns/full-2-comai.ngrok.dev/tcp/30335/p2p/12D3KooWCqTW6ELT4W7i39oGrYQihkSrK7Ahxe2MjpCXdx7SNd9m",
+        "full-3": "/dns/full-3-comai.ngrok.dev/tcp/30336/p2p/12D3KooWFBU9kdGNcQrZeo9DTF6FbL55GBfjsp9dQ5E552wwvL4E",
+        "archive-1": "/dns/archive-1-comai.ngrok.dev/tcp/30337/p2p/12D3KooWGWs3MD7UDGoHUnMLMavkAGNbLkJPTmnW6aHf22XN9Dqa"
+}
