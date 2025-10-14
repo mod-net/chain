@@ -10,6 +10,8 @@ scripts/__pycache__/
 target/
 **/target/
 
+**/__pycache__
+
 # Nix / direnv
 .direnv/
 result

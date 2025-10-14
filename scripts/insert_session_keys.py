@@ -18,8 +18,8 @@ Usage examples:
   # Prompt for password and insert both keys
   ./scripts/insert_session_keys.py \
     --rpc http://127.0.0.1:9933 \
-    --aura-file ~/.modnet/keys/20250912-013146-aura-sr25519.json \
-    --grandpa-file ~/.modnet/keys/20250912-013146-grandpa-ed25519.json \
+    --aura-file ~/.modnet/keys/20250912-013443-aura-sr25519.json \
+    --grandpa-file ~/.modnet/keys/20250912-013443-grandpa-ed25519.json \
     --prompt
 
   # Non-interactive (password as env or argument)

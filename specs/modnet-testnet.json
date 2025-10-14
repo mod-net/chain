@@ -36,20 +36,20 @@
         "balances": {
           "balances": [
             [
-              "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-              1152921504606846976
+              "5GRgCZhCtC4dC2QsgxagTB4cZ7gJWEgVtMTbBTkFTVDsVTwC",
+              1000000000000000000000000
             ],
             [
-              "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
-              1152921504606846976
+              "5DfaGRwfpgjzU2HcYDPXJQwAVQ6cAHiGDfeNf7YYJjCKHoBB",
+              10000000000000000000000000
             ],
             [
-              "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
-              1152921504606846976
+              "5G9MCPkRmbYKvRwSog6wnfGsa474mZ7E6gyYAFjPgJMDczhq",
+              1000000000000000000000
             ],
             [
-              "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy",
-              1152921504606846976
+              "5Fqfm4drTEfBdCmjnCSTQpxWLg82UgDP3R7zKNnqFFj2GpkY",
+              1000000000000000000000
             ],
             [
               "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
@@ -111,14 +111,12 @@
         },
         "grandpa": {
           "authorities": [
-            [
               "5CGLLmCSLBB7tx71BqHvfrQDWyyBmXBSNrpo3pGfwCG6sBrT",
               1
             ]
-          ]
         },
         "sudo": {
-          "key": "5Hd73Uok5LveTaMdZTnCJDKFCUzBoP5oTgYBhZgukhvnDGEn"
+          "key": "5GRgCZhCtC4dC2QsgxagTB4cZ7gJWEgVtMTbBTkFTVDsVTwC"
         }
       }
     }
