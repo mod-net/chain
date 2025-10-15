@@ -494,12 +494,11 @@ def _read_password_sources(password: str | None, password_file: str | None, pass
     if prompt:
         if for_load:
             return _read_password_bytes_interactive(prompt_set)
-        else:
-            pw1 = _read_password_bytes_interactive(prompt_set)
-            pw2 = _read_password_bytes_interactive(prompt_confirm)
-            if pw1 != pw2:
-                raise ValueError("Passwords do not match")
-            return pw1
+        pw1 = _read_password_bytes_interactive(prompt_set)
+        pw2 = _read_password_bytes_interactive(prompt_confirm)
+        if pw1 != pw2:
+            raise ValueError("Passwords do not match")
+        return pw1
     return None
 
 
