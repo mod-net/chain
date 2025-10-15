@@ -645,7 +645,7 @@ def cmd_list(args):
 def cmd_select(args):
     files = list_key_files()
     if not files:
-        console.print("[yellow]No key files found in[/yellow] " + DEFAULT_KEYS_DIR)
+        console.print(f"[yellow]No key files found in[/yellow] {DEFAULT_KEYS_DIR}")
         return
     if args.index is not None:
         idx = args.index
