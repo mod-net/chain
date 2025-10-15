@@ -34,11 +34,6 @@ From Node 1 logs, copy the `/p2p/...` multiaddr, e.g.:
 
 ```
 /ip4/127.0.0.1/tcp/30333/p2p/<peer_id>
-```
-
-If you can’t see it, you can query the peer id with:
-
-```bash
 ./target/release/modnet-node --version
 ```
 
