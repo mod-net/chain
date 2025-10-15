@@ -1,4 +1,8 @@
 use crate as pallet_modules;
+use crate::module;
+use crate::StorageReference;
+use crate::URLReference;
+use frame_system::ensure_signed;
 use frame_support::{
     derive_impl, parameter_types,
     traits::{ConstU128, ConstU16, ConstU32, ConstU64, VariantCountOf},
@@ -6,8 +10,11 @@ use frame_support::{
 use sp_core::H256;
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
-    BuildStorage, Percent,
+    BuildStorage, Percent
 };
+use frame_system::pallet_prelude::OriginFor;
+use sp_runtime::DispatchResult;
+
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -111,6 +118,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
             (1, 10_000_000_000_000),
             (2, 10_000_000_000_000),
             (3, 10_000_000_000_000),
+            (4, 10_000_000_000_000),
         ],
         dev_accounts: Default::default(),
     }
@@ -120,4 +128,16 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
     ext
+}
+
+pub fn update_module(
+    origin: OriginFor<Test>,
+    id: u64,
+    name: Option<module::ModuleName<Test>>,
+    data: Option<StorageReference<Test>>,
+    url: Option<URLReference<Test>>,
+    take: Option<Percent>,
+) -> DispatchResult {
+    let who = ensure_signed(origin)?;
+    module::update::<Test>(who, id, name, data, url, take)
 }

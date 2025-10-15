@@ -60,7 +60,12 @@ def insert_key(rpc_url: str, key_type: str, secret_phrase: str, public_hex: str)
         "method": "author_insertKey",
         "params": [key_type, secret_phrase, public_hex],
     }
-    resp = requests.post(rpc_url, headers={"Content-Type": "application/json"}, data=json.dumps(payload))
+    resp = requests.post(
+        rpc_url,
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(payload),
+        timeout=30,
+    )
     resp.raise_for_status()
     return resp.json()
 

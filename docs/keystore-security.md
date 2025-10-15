@@ -94,7 +94,7 @@ Substrate stores session keys (AURA/GRANDPA) in the local keystore on disk under
   - Insert keys via RPC in a controlled mode (`insert_session_keys.py`).
   - Submit `session.setKeys` on-chain for each validator.
 - `README.md` contains the Keystore Security section listing risks and mitigations.
-- (If using compose) Data volumes are separated per node and a purge+restart workflow is documented.
+- (If using compose) Data volumes are separated per node and a purge and restart workflow is documented.
 
 ---
 

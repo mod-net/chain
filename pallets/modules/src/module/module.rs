@@ -106,4 +106,11 @@ impl<T: crate::Config> Module<T> {
 
         Ok(())
     }
+
+    pub fn validate_url(url: &URLReference<T>) -> DispatchResult {
+        if let Some(url_ref) = url {
+            ensure!(!url_ref.is_empty(), crate::Error::<T>::InvalidUrl);
+        }
+        Ok(())
+    }
 }

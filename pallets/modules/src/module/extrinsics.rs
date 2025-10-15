@@ -15,6 +15,7 @@ pub fn register<T: crate::Config>(
     take: Option<Percent>,
 ) -> DispatchResult {
     Module::<T>::validate_name(&name[..])?;
+    Module::<T>::validate_url(&url)?;
 
     let current_count = crate::ModuleCount::<T>::get();
     ensure!(
@@ -121,8 +122,8 @@ pub fn update<T: crate::Config>(
     origin: AccountIdOf<T>,
     id: u64,
     name: Option<ModuleName<T>>,
-    data: StorageReference<T>,
-    url: URLReference<T>,
+    data: Option<StorageReference<T>>,
+    url: Option<URLReference<T>>,
     take: Option<Percent>,
 ) -> DispatchResult {
     crate::Modules::<T>::try_mutate(&id, |module_query| -> DispatchResult {
@@ -138,8 +139,10 @@ pub fn update<T: crate::Config>(
                     .expect("Blocks will not exceed u64 maximum.");
 
                 let new_name = name.unwrap_or(module.name.clone());
-                let new_data = data.or(module.data.clone());
-                let new_url = url.or(module.url.clone());
+                let new_data = data.unwrap_or_else(|| module.data.clone());
+                let new_url = url.unwrap_or_else(|| module.url.clone());
+                Module::<T>::validate_url(&new_url)?;
+
                 let new_take = take.unwrap_or(module.take);
 
                 let max_take = crate::MaxModuleTake::<T>::get();

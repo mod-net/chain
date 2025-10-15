@@ -70,7 +70,14 @@ def multisig_address(signers: list[str], threshold: int, ss58_prefix: int = 42) 
 
 
 def run(cmd: list[str]):
-    proc = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(
+        cmd,
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
     if proc.returncode != 0:
         raise RuntimeError(f"Command failed: {' '.join(cmd)}\nSTDERR:\n{proc.stderr}")
     return proc.stdout
@@ -126,7 +133,14 @@ def main():
             out = run([str(NODE_BIN), "subkey", "inspect", "--public", "--scheme", scheme, s]) if False else None
             # modnet-node may not expose subkey; use standalone subkey on PATH instead
             try:
-                subkey_out = subprocess.run(["subkey", "inspect", "--network", "substrate", "--public", "--scheme", scheme, s], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                subkey_out = subprocess.run(
+                    ["subkey", "inspect", "--network", "substrate", "--public", "--scheme", scheme, s],
+                    cwd=ROOT,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=False,
+                )
                 if subkey_out.returncode != 0:
                     raise RuntimeError(subkey_out.stderr)
                 # parse SS58 Address line

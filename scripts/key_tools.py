@@ -148,26 +148,30 @@ def _read_password_bytes_interactive(prompt: str) -> bytes:
         _sys.stderr.write(prompt)
         _sys.stderr.flush()
         tty.setraw(fd)
-        buf = bytearray()
-        while True:
-            ch = os.read(fd, 1)
-            if not ch:
-                break
-            b = ch[0]
-            if b in (10, 13):
-                _sys.stderr.write("\n")
-                _sys.stderr.flush()
-                break
-            if b == 3:
-                raise KeyboardInterrupt
-            if b in (8, 127):
-                if buf:
-                    buf.pop()
-                continue
-            buf.extend(ch)
-        return bytes(buf)
+        return _read_password_stream(fd)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def _read_password_stream(fd: int) -> bytes:
+    buf = bytearray()
+    while True:
+        ch = os.read(fd, 1)
+        if not ch:
+            break
+        b = ch[0]
+        if b in (10, 13):
+            _sys.stderr.write("\n")
+            _sys.stderr.flush()
+            break
+        if b == 3:
+            raise KeyboardInterrupt
+        if b in (8, 127):
+            if buf:
+                buf.pop()
+            continue
+        buf.extend(ch)
+    return bytes(buf)
 
 
 def _aesgcm_encrypt(key: bytes, plaintext: bytes, associated_data: bytes = b"") -> dict:
@@ -262,16 +266,17 @@ class Key(BaseModel):
         if self.public_key_hex and self.ss58_address:
             return self
         if self.secret_phrase:
-            derived = Key.from_secret_phrase(self.secret_phrase, self.scheme, self.network)
-            self.public_key_hex = derived.public_key_hex
-            self.ss58_address = derived.ss58_address
-            # populate byte_array from derived ss58
-            self.byte_array = ss58_to_bytes(self.ss58_address)
-            # populate private key if available from subkey inspect
-            if not self.private_key_hex and derived.private_key_hex:
-                self.private_key_hex = derived.private_key_hex
-            return self
+            return self._enrich_from_secret_phrase()
         raise ValueError("No data available to derive from; provide secret_phrase or public_key_hex")
+
+    def _enrich_from_secret_phrase(self) -> "Key":
+        derived = Key.from_secret_phrase(self.secret_phrase, self.scheme, self.network)
+        self.public_key_hex = derived.public_key_hex
+        self.ss58_address = derived.ss58_address
+        self.byte_array = ss58_to_bytes(self.ss58_address)
+        if not self.private_key_hex and derived.private_key_hex:
+            self.private_key_hex = derived.private_key_hex
+        return self
 
     def to_json(self, include_secret: bool = False) -> dict:
         """Return a JSON-serializable dict of this key. Optionally include the secret.
@@ -342,32 +347,33 @@ class Key(BaseModel):
 
     def save(self, path: str, password: str | bytes | None = None) -> None:
         """Encrypt and write the key to `path`. If no password is provided, prompt securely."""
-        # Best-effort enrichment prior to save: ensure we persist private_key_hex and byte_array
+        self._enrich_before_save()
+        password = self._resolve_password(password)
+        blob = self.encrypt(password)
+        self._write_encrypted_blob(path, blob)
+
+    def _enrich_before_save(self) -> None:
         try:
             if self.secret_phrase and not self.private_key_hex:
-                derived = Key.from_secret_phrase(self.secret_phrase, self.scheme, self.network)
-                if derived.private_key_hex and not self.private_key_hex:
-                    self.private_key_hex = derived.private_key_hex
-                if derived.ss58_address and not self.ss58_address:
-                    self.ss58_address = derived.ss58_address
-                if not self.byte_array:
-                    self.byte_array = ss58_to_bytes(self.ss58_address)
+                self._enrich_from_secret_phrase()
             elif self.ss58_address and not self.byte_array:
                 self.byte_array = ss58_to_bytes(self.ss58_address)
         except Exception:
-            # Do not block saving if enrichment fails
             pass
-        if password is None:
-            console.print("[cyan]Hit Ctrl-C to exit[/cyan]")
-            pw1 = _read_password_bytes_interactive("Set password for key file: ")
-            pw2 = _read_password_bytes_interactive("Confirm password: ")
-            if pw1 != pw2:
-                raise ValueError("Passwords do not match")
-            if len(pw1) == 0:
-                raise ValueError("Password cannot be empty")
-            password = pw1
-        blob = self.encrypt(password)
-        # Ensure the parent directory exists
+
+    def _resolve_password(self, password: str | bytes | None) -> str | bytes:
+        if password is not None:
+            return password
+        console.print("[cyan]Hit Ctrl-C to exit[/cyan]")
+        pw1 = _read_password_bytes_interactive("Set password for key file: ")
+        pw2 = _read_password_bytes_interactive("Confirm password: ")
+        if pw1 != pw2:
+            raise ValueError("Passwords do not match")
+        if len(pw1) == 0:
+            raise ValueError("Password cannot be empty")
+        return pw1
+
+    def _write_encrypted_blob(self, path: str, blob: dict) -> None:
         parent = os.path.dirname(os.path.expanduser(path)) or "."
         os.makedirs(parent, exist_ok=True)
         with open(os.path.expanduser(path), "w") as file:
@@ -494,12 +500,16 @@ def _read_password_sources(password: str | None, password_file: str | None, pass
     if prompt:
         if for_load:
             return _read_password_bytes_interactive(prompt_set)
-        pw1 = _read_password_bytes_interactive(prompt_set)
-        pw2 = _read_password_bytes_interactive(prompt_confirm)
-        if pw1 != pw2:
-            raise ValueError("Passwords do not match")
-        return pw1
+        return _prompt_new_password(prompt_set, prompt_confirm)
     return None
+
+
+def _prompt_new_password(prompt_set: str, prompt_confirm: str) -> bytes:
+    pw1 = _read_password_bytes_interactive(prompt_set)
+    pw2 = _read_password_bytes_interactive(prompt_confirm)
+    if pw1 != pw2:
+        raise ValueError("Passwords do not match")
+    return pw1
 
 
 def cmd_gen(args):

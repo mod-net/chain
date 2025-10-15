@@ -159,6 +159,8 @@ pub mod pallet {
         MaxModulesReached,
         /// Maximum Take Exceeded
         MaxTakeExceeded,
+        /// The provided URL is invalid
+        InvalidUrl,
         /// The module does not exist in the registry.
         ModuleNotFound,
         /// The module is not owned by the caller
@@ -202,8 +204,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             id: u64,
             name: Option<module::ModuleName<T>>,
-            data: StorageReference<T>,
-            url: URLReference<T>,
+            data: Option<StorageReference<T>>,
+            url: Option<URLReference<T>>,
             take: Option<Percent>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;

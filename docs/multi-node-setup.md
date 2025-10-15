@@ -37,7 +37,7 @@ From Node 1 logs, copy the `/p2p/...` multiaddr, e.g.:
 ./target/release/modnet-node --version
 ```
 
-Or use the system logs; typically Substrate prints the libp2p address shortly after startup.
+Or use the system logs; typically Substrate prints the libp2p address shortly after startup. If you can’t see it, you can query the peer ID with:
 
 ## Start a full node (Node 2)
 

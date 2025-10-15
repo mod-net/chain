@@ -286,7 +286,7 @@ fn update_module_works_and_checks_ownership_and_take() {
             0,
             None,
             None,
-            url(b"new-url"),
+            Some(url(b"new-url")),
             None
         ));
         let m = crate::Modules::<Test>::get(0).unwrap();
@@ -297,7 +297,7 @@ fn update_module_works_and_checks_ownership_and_take() {
             RuntimeOrigin::signed(who),
             0,
             None,
-            sr(b"y"),
+            Some(sr(b"y")),
             None,
             Some(new_take)
         ));
@@ -340,6 +340,18 @@ fn update_module_works_and_checks_ownership_and_take() {
                 None
             ),
             Error::<Test>::ModuleNotFound
+        );
+        // reject empty url
+        assert_noop!(
+            ModuleRegistry::<Test>::update_module(
+                RuntimeOrigin::signed(who),
+                0,
+                None,
+                None,
+                Some(url(b"")),
+                None
+            ),
+            Error::<Test>::InvalidUrl
         );
     });
 }
@@ -412,6 +424,51 @@ fn max_modules_reached() {
 }
 
 #[test]
+fn remove_then_register_allows_new_module() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(ModuleRegistry::<Test>::register_module(
+            RuntimeOrigin::signed(1),
+            bv(b"a"),
+            sr(b"x"),
+            url(b"u1"),
+            None
+        ));
+        assert_ok!(ModuleRegistry::<Test>::register_module(
+            RuntimeOrigin::signed(2),
+            bv(b"b"),
+            sr(b"y"),
+            url(b"u2"),
+            None
+        ));
+        assert_ok!(ModuleRegistry::<Test>::register_module(
+            RuntimeOrigin::signed(3),
+            bv(b"c"),
+            sr(b"z"),
+            url(b"u3"),
+            None
+        ));
+        assert_eq!(crate::ModuleCount::<Test>::get(), 3);
+
+        assert_ok!(ModuleRegistry::<Test>::remove_module(
+            RuntimeOrigin::signed(2),
+            1
+        ));
+        assert_eq!(crate::ModuleCount::<Test>::get(), 2);
+        assert!(crate::Modules::<Test>::get(1).is_none());
+
+        assert_ok!(ModuleRegistry::<Test>::register_module(
+            RuntimeOrigin::signed(4),
+            bv(b"d"),
+            sr(b"w"),
+            url(b"u4"),
+            None
+        ));
+        assert_eq!(crate::ModuleCount::<Test>::get(), 3);
+        assert!(crate::Modules::<Test>::get(3).is_some());
+    });
+}
+
+#[test]
 fn module_url_length_enforced() {
     new_test_ext().execute_with(|| {
         let who: u64 = 1;
@@ -435,5 +492,17 @@ fn module_url_length_enforced() {
             url_ok,
             None
         ));
+
+        // empty url rejected
+        assert_noop!(
+            ModuleRegistry::<Test>::register_module(
+                RuntimeOrigin::signed(2),
+                bv(b"empty"),
+                sr(b"r"),
+                url(b""),
+                None
+            ),
+            Error::<Test>::InvalidUrl
+        );
     });
 }
