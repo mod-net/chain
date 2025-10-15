@@ -629,7 +629,7 @@ def cmd_key_load(args):
 def cmd_list(args):
     files = list_key_files()
     if not files:
-        console.print("[yellow]No key files found in[/yellow] " + DEFAULT_KEYS_DIR)
+        console.print(f"[yellow]No key files found in[/yellow] {DEFAULT_KEYS_DIR}")
         return
     rows = [
         {
