@@ -26,7 +26,7 @@ Substrate stores session keys (AURA/GRANDPA) in the local keystore on disk under
 ## Proposed Changes
 
 1. File-system hardening
-- Create dedicated data base path per node, e.g. `/var/lib/modnet/node{N}` (native) or a dedicated docker volume.
+- Create dedicated data path per node, e.g. `/var/lib/modnet/node{N}` (native) or a dedicated docker volume.
 - Ensure ownership by a dedicated unprivileged user (e.g., `modnet`) and restrictive permissions.
 - If feasible, place the data path on an encrypted volume (LUKS or cloud volume encryption).
 
