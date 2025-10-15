@@ -45,7 +45,7 @@ Substrate stores session keys (AURA/GRANDPA) in the local keystore on disk under
 3. Docker-compose adjustments (if applicable)
 - Separate volumes for node1/node2 data.
 - Parameterize RPC exposure and methods via environment variables (`RPC_METHODS`, `RPC_EXTERNAL`, `RPC_CORS`).
-- Provide a `purge-and-restart` make/compose target to safely tear down and start from fresh genesis.
+- Provide a `purge-and-restart` make/docker-compose target to safely tear down and start from fresh genesis.
 
 4. Key management flow
 - Generate keys via `scripts/key_tools.py` (password-protected, scrypt+AES-GCM), store encrypted artifacts in `~/.modnet/keys`.
