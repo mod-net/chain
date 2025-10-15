@@ -1,13 +1,9 @@
-name: Deploy to Production
+name: Deploy (Self-Hosted)
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
-
-# Define environment variables at workflow level
-env:
-  DOCKER_REGISTRY: docker.io
 
 permissions:
   contents: read
@@ -23,17 +19,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check Docker
+      - name: Ensure Docker is available
         run: |
           docker version
           docker compose version || docker --help
-
-      - name: Login to Docker Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.DOCKER_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GH_TOKEN }}
 
       - name: Build and deploy with Compose
         env:
@@ -44,4 +33,4 @@ jobs:
 
       - name: Show running containers
         run: |
-          docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
+          docker ps --format 'table {{.Names}}	{{.Image}}	{{.Status}}	{{.Ports}}'

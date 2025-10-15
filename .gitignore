@@ -1,6 +1,16 @@
+.venv
+.env
+!.env.example
+Cargo.lock
+scripts/uv.lock
+scripts/__pycache__/
+.modnet
+
 # Rust
 target/
 **/target/
+
+**/__pycache__
 
 # Nix / direnv
 .direnv/

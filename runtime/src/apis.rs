@@ -24,6 +24,7 @@
 // For more information, please refer to <http://unlicense.org>
 
 // External crates imports
+use crate::InherentDataExt;
 use alloc::vec::Vec;
 use frame_support::{
     genesis_builder_helper::{build_state, get_preset},
@@ -42,8 +43,8 @@ use sp_version::RuntimeVersion;
 
 // Local module imports
 use super::{
-    AccountId, Aura, Balance, Block, Executive, Grandpa, InherentDataExt, Nonce, Runtime,
-    RuntimeCall, RuntimeGenesisConfig, SessionKeys, System, TransactionPayment, VERSION,
+    AccountId, Aura, Balance, Block, Executive, Grandpa, Nonce, Runtime, RuntimeCall,
+    RuntimeGenesisConfig, SessionKeys, System, TransactionPayment, VERSION,
 };
 
 impl_runtime_apis! {

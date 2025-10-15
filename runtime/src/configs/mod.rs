@@ -31,11 +31,12 @@ use frame_support::{
         constants::{RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND},
         IdentityFee, Weight,
     },
+    PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{ConstFeeMultiplier, FungibleAdapter, Multiplier};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_runtime::{traits::One, Perbill};
+use sp_runtime::{traits::One, Perbill, Percent};
 use sp_version::RuntimeVersion;
 
 // Local module imports
@@ -58,6 +59,12 @@ parameter_types! {
     );
     pub RuntimeBlockLength: BlockLength = BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
     pub const SS58Prefix: u8 = 42;
+}
+
+// Bridge pallet configuration
+impl pallet_bridge::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
 }
 
 /// The default types are being injected by [`derive_impl`](`frame_support::derive_impl`) from
@@ -157,11 +164,80 @@ impl pallet_sudo::Config for Runtime {
     type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
+// ----------------------------------
+// Utility pallet configuration
+// ----------------------------------
+impl pallet_utility::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type PalletsOrigin = <RuntimeOrigin as frame_support::traits::OriginTrait>::PalletsOrigin;
+    type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
+}
+
+// ----------------------------------
+// Multisig pallet configuration
+// ----------------------------------
+parameter_types! {
+    pub const DepositBase: Balance = 2 * EXISTENTIAL_DEPOSIT; // base deposit for multisig
+    pub const DepositFactor: Balance = EXISTENTIAL_DEPOSIT / 2; // additional deposit per signer
+    pub const MaxSignatories: u16 = 20;
+}
+
+impl pallet_multisig::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type Currency = Balances;
+    type DepositBase = DepositBase;
+    type DepositFactor = DepositFactor;
+    type MaxSignatories = MaxSignatories;
+    type BlockNumberProvider = System;
+    type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+    pub const MaxModules: u64 = u64::MAX;
+    pub const MaxModuleReplicants: u16 = u16::MAX;
+    pub const DefaultMaxModuleTake: Percent = Percent::from_percent(5);
+}
+
 /// Configure the Modules pallet for real blockchain transactions.
 impl pallet_modules::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
     type WeightInfo = pallet_modules::weights::SubstrateWeight<Runtime>;
-    /// Maximum length for public keys
-    type MaxKeyLength = ConstU32<64>;
+
+    /// Maximum number of Modules a single User (Account) can register
+    type MaxModules = MaxModules;
+    /// Maximum number of Replicants that can be active per Module
+    type MaxModuleReplicants = MaxModuleReplicants;
+    /// Maximum take percentage a Module Owner can set
+    type DefaultMaxModuleTake = DefaultMaxModuleTake;
+    /// Maximum length for Module Names (basing 78 characters on recommendations from RFC 5322)
+    type MaxModuleNameLength = ConstU32<78>;
     /// Maximum length for IPFS CIDs (typical CID is ~46 characters)
-    type MaxCidLength = ConstU32<64>;
+    type MaxStorageReferenceLength = ConstU32<64>;
+    /// Maximum length for URLs
+    type MaxURLLength = ConstU32<128>;
+    /// Default Module Registration Cost
+    type DefaultModuleCollateral = ConstU128<5_000_000_000>;
+}
+
+parameter_types! {
+    pub const DefaultModulePaymentFee: Perbill = Perbill::from_perthousand(25); // 2.5%
+    pub const ModnetPaymentsPalletId: PalletId = PalletId(*b"modnet00");
+}
+
+impl pallet_module_payments::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
+    type Currency = Balances;
+    type Modules = Runtime;
+
+    type PalletId = ModnetPaymentsPalletId;
+
+    type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
+    type DefaultModulePaymentFee = DefaultModulePaymentFee;
+    type DefaultPaymentDistributionPeriod = ConstU64<25>;
+    type MaxPayoutsPerBlock = ConstU32<100>;
+    type MaxModules = MaxModules;
 }
