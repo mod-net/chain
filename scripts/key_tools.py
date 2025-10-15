@@ -285,7 +285,7 @@ class Key(BaseModel):
         # Ensure byte_array is JSON-safe (hex string) rather than raw bytes
         byte_arr = data.get("byte_array")
         if isinstance(byte_arr, (bytes, bytearray)):
-            data["byte_array"] = "0x" + bytes(byte_arr).hex()
+            data["byte_array"] = f"0x{bytes(byte_arr).hex()}"
         return data
 
     # Encryption format: JSON with scrypt params, salt, nonce, ciphertext (base64)
