@@ -22,7 +22,7 @@ Use the helper script `scripts/start_validator_node.sh`:
 Defaults:
 - P2P: 30333
 - HTTP RPC: 9933
-- WebSocket: 9944 (default, no explicit flags needed)
+- WebSocket: 9944 (default, no explicit flags are needed)
 - Base path: `~/.modnet/data`
 
 Note:
